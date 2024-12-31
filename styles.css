@@ -1,0 +1,13 @@
+:root {
+  box-sizing: border-box;
+}
+
+*, ::before, ::after {
+  box-sizing: inherit;
+}
+
+.container {
+  width: 70%;
+  margin-inline: auto;
+  border: 2px solid grey;
+}
