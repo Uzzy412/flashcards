@@ -9,5 +9,5 @@
 .container {
   width: 70%;
   margin-inline: auto;
-  border: 2px solid grey;
+  /* border: 2px solid grey; */
 }
