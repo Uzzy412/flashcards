@@ -7,12 +7,14 @@
   <body>
     
     <div class="container">
-      <!-- <span class="welcome-message">Welcome!</span> -->
+      <span class="welcome-message">Welcome! Choose an existent profile or create one.</span><br><br>
+
       <input id="add-profile-text" class="profile-name" placeholder="Profile name"/>
       <button type="button" class="create-profile-btn">Create new profile</button>
       <span class="profile-text"></span>
 
-      <select>
+      <label for="select">Your profiles:</label>
+      <select id="select">
       </select><br><br>
 
       <input id="add-folder-text" type="text" placeholder="Folder name">
@@ -20,6 +22,14 @@
       <span class="folder-text"></span>
 
       <div class="folders"></div>
+      <span class="data-message"></span>
+
+      <textarea class="front"></textarea>
+      <textarea class="back"></textarea>
+      <button class="create-data-btn">Create data</button>
+      
+      <ul class="folders-data-list"></ul>
+
     </div>
 
     <script src="script.js"></script>
