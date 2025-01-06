@@ -25,6 +25,7 @@ let profilesAndData = [
   // {profileName: Alex, data: [ {folderName: 1, data: [1, 2, 3]}, {folderName: 2, data: [1, 2, 3]} ]},
 ];
 
+let currentFolder;
 let targetedFolder;
 let folder;
 let foldersArray = [];
@@ -50,6 +51,7 @@ request.onsuccess = function() {
 }
 
 
+
 function createProfile(db, name) {
   profile = name;
   
@@ -73,6 +75,7 @@ createProfileBtn.addEventListener("click", function(db) {
   db = request.result;
   createProfile(db, profileNameInput.value);
 });
+
 
 
 function showProfiles(db, value) {
@@ -109,6 +112,7 @@ function showProfiles(db, value) {
 }
 
 
+
 function profileAutoselect(who) {
   profile = who;
 
@@ -136,12 +140,14 @@ function profileAutoselect(who) {
 }
 
 
+
 function selectProfile(e) {
   db = request.result;
 
   if (e.target.tag = "option") {
     profile = e.target.value;
     console.log(profile);
+    foldersDataList.innerHTML = '';
   }
 
   const tr = db.transaction("profiles", "readwrite");
@@ -169,6 +175,7 @@ select.addEventListener("change", function(e) {
   selectProfile(e);
   showFolders(db, profile);
 });
+
 
 
 function addFolder(db, name) {
@@ -208,6 +215,7 @@ addFolderBtn.addEventListener("click", function(db) {
 });
 
 
+
 function showFolders(db, value, e) {
   db = request.result;
   let tr = db.transaction("profiles");
@@ -220,19 +228,10 @@ function showFolders(db, value, e) {
     folders.innerHTML = search.result.data.map((folder) => {
       return `<button class="folderButtons">${folder.folderName}</button>`;
     }).join(" ");
-    // checkForFolders();
   }
 }
 
-// function checkForFolders() {
-//   if (folders.children.length > 0) {
-//     console.log("TRUE");
-//     return true;
-//   } else {
-//     console.log("FALSE");
-//     return false;
-//   }
-// }
+
 
 function openFolders(e, db, whose) {
   db = request.result;
@@ -242,25 +241,21 @@ function openFolders(e, db, whose) {
   let search = index.get(whose);
   
   search.onsuccess = function() {
-    foldersArray = search.result.data;
+    currentFolder = e.target.innerText;
+    console.log(currentFolder);
+    foldersArray = search.result;
+    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
 
     if (e.target.tagName === "BUTTON") {
-      targetedFolder = foldersArray.filter((folder) => {
-        return folder.folderName === e.target.innerText;
-      });
-
-      folder = targetedFolder[0];
-
-      if (folder.data > 0) {
-        foldersDataList.innerHTML = folder.data.map((datas) => {
+      if (search.result.data[index].data.length > 0) {
+        foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
           return `<li>${datas}</li>`;
-        });
+        }).join("");
       } else {
-        console.error("TargetedFolder datas are empty");
+        foldersDataList.innerHTML = '';
         dataMessage.innerText = "\nNo data in this folder";
       }
-      
-      console.log("Your folder:", e.target.innerText, JSON.stringify(folder));
+      console.log("Your folder:", e.target.innerText, search.result.data[index]);
     }
   };
 }
@@ -269,27 +264,58 @@ folders.addEventListener("click", function(e, db) {
   openFolders(e, db, profile);
 });
 
-function createData(db) {
 
+
+function createData(db, front, back) {
+  db = request.result;
+  let tr = db.transaction("profiles", "readwrite");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+
+    foldersArray.data[index].data.push(front);
+    foldersArray.data[index].data.push(back);
+
+    const indexDelete = store.index("by_name");
+    const deletion = indexDelete.getKey(profile);
+    deletion.onsuccess = function() {
+      let id = deletion.result;
+      const deleteRequest = store.delete(id);
+    }
+    
+    const create = store.add(foldersArray);
+    create.onsuccess = () => console.log("New data on folder", currentFolder, "on profile", profile);
+    create.onerror = () => console.log("Error");
+  }
+}
+createDataBtn.addEventListener("click", function(db) {
+  createData(db, frontTextarea.value, backTextarea.value);
+  update(db);
+  frontTextarea.value = '';
+  backTextarea.value = '';
+});
+
+
+
+function update(db) {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+  
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+    foldersDataList.innerHTML = foldersArray.data[index].data.map((datas) => {
+      return `<li>${datas}</li>`;
+    }).join("");
+  };
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
-  
 
 
