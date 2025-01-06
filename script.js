@@ -14,15 +14,27 @@ const dataMessage = document.querySelector(".data-message");
 const frontTextarea = document.querySelector(".front");
 const backTextarea = document.querySelector(".back");
 const createDataBtn = document.querySelector(".create-data-btn");
+const showDataBtn = document.querySelector(".show-data-btn");
+const openedFolder = document.querySelector(".opened-folder");
 
 yourProfilesLabel.style.display = "none";
 select.style.display = "none";
 folderNameInput.style.display = "none";
 addFolderBtn.style.display = "none";
+frontTextarea.style.display = "none";
+backTextarea.style.display = "none";
+createDataBtn.style.display = "none";
+showDataBtn.style.display = "none";
 
 let profilesAndData = [
-  // {profileName: Alex, data: [ {folderName: 1, data: [1, 2, 3]}, {folderName: 2, data: [1, 2, 3]} ]},
-  // {profileName: Alex, data: [ {folderName: 1, data: [1, 2, 3]}, {folderName: 2, data: [1, 2, 3]} ]},
+
+  // { profileName: Alex,
+  //   data: [ 
+  //     { folderName: 1, data: [{front: "text", back: "text"}, {}, {}] }, 
+  //     { folderName: 2, data: [1, 2, 3] },
+  //   ]
+  // },
+
 ];
 
 let currentFolder;
@@ -69,6 +81,13 @@ function createProfile(db, name) {
   showFolders(db, name);
 
   profileNameInput.value = '';
+
+  foldersDataList.innerHTML = '';
+  frontTextarea.style.display = "none";
+  backTextarea.style.display = "none";
+  showDataBtn.style.display = "none";
+  createDataBtn.style.display = "none";
+  foldersDataList.style.display = "none";
 
 }
 createProfileBtn.addEventListener("click", function(db) {
@@ -133,7 +152,7 @@ function profileAutoselect(who) {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "\n\nYour folders\n\n";
+      folderText.innerText = "Your folders\n\n";
     }
   };
   search.onerror = function() {console.log("error")};
@@ -147,7 +166,6 @@ function selectProfile(e) {
   if (e.target.tag = "option") {
     profile = e.target.value;
     console.log(profile);
-    foldersDataList.innerHTML = '';
   }
 
   const tr = db.transaction("profiles", "readwrite");
@@ -166,10 +184,19 @@ function selectProfile(e) {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "\n\nYour folders\n\n";
+      folderText.innerText = "Your folders\n\n";
     }
   };
   search.onerror = function() {console.log("error")};
+
+  foldersDataList.innerHTML = '';
+  frontTextarea.style.display = "none";
+  backTextarea.style.display = "none";
+  showDataBtn.style.display = "none";
+  createDataBtn.style.display = "none";
+  foldersDataList.style.display = "none";
+  dataMessage.innerText = '';
+  openedFolder.innerText = '';
 }
 select.addEventListener("change", function(e) {
   selectProfile(e);
@@ -216,7 +243,7 @@ addFolderBtn.addEventListener("click", function(db) {
 
 
 
-function showFolders(db, value, e) {
+function showFolders(db, value) {
   db = request.result;
   let tr = db.transaction("profiles");
   let store = tr.objectStore("profiles");
@@ -226,7 +253,7 @@ function showFolders(db, value, e) {
 
   search.onsuccess = function() {
     folders.innerHTML = search.result.data.map((folder) => {
-      return `<button class="folderButtons">${folder.folderName}</button>`;
+      return `<button class="folder-buttons">${folder.folderName}</button>`;
     }).join(" ");
   }
 }
@@ -239,29 +266,73 @@ function openFolders(e, db, whose) {
   let store = tr.objectStore("profiles");
   let index = store.index("by_name");
   let search = index.get(whose);
-  
+
   search.onsuccess = function() {
-    currentFolder = e.target.innerText;
-    console.log(currentFolder);
     foldersArray = search.result;
-    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
 
     if (e.target.tagName === "BUTTON") {
-      if (search.result.data[index].data.length > 0) {
-        foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
-          return `<li>${datas}</li>`;
-        }).join("");
-      } else {
-        foldersDataList.innerHTML = '';
+      currentFolder = e.target.innerText;
+      const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+      console.log(currentFolder);
+      openedFolder.innerText = currentFolder;
+
+      if (search.result.data[index].data.length <= 0) {
         dataMessage.innerText = "\nNo data in this folder";
+        foldersDataList.style.display = "none";
+        showDataBtn.style.display = "none";
+      } else {
+        dataMessage.innerText = "";
+        showDataBtn.style.display = "block";
       }
+
       console.log("Your folder:", e.target.innerText, search.result.data[index]);
+      frontTextarea.style.display = "block";
+      backTextarea.style.display = "block";
+      createDataBtn.style.display = "block";
+    } else {
+      return;
     }
   };
 }
 folders.addEventListener("click", function(e, db) {
   db = request.result;
   openFolders(e, db, profile);
+  foldersDataList.style.display = "none";
+});
+
+
+
+function showData(db, whose) {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(whose);
+  
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+  
+    if (search.result.data[index].data.length > 0) {
+      foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
+        return `<div id="data-div"><span class="data-span">${datas.front}</span><span class="data-span">${datas.back}</span></div>`;
+      }).join("");
+    } else {
+      foldersDataList.innerHTML = '';
+      dataMessage.innerText = "\nNo data in this folder";
+    }
+  }    
+}
+showDataBtn.addEventListener("click", function(db) {
+  db = request.result;
+  showData(db, profile);
+});
+showDataBtn.addEventListener("click", () => {
+  if (foldersDataList.style.display === "block") {
+    foldersDataList.style.display = "none";
+  } else {
+    foldersDataList.style.display = "block";
+  }
 });
 
 
@@ -277,8 +348,7 @@ function createData(db, front, back) {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
 
-    foldersArray.data[index].data.push(front);
-    foldersArray.data[index].data.push(back);
+    foldersArray.data[index].data.push({front: front, back: back});
 
     const indexDelete = store.index("by_name");
     const deletion = indexDelete.getKey(profile);
@@ -294,9 +364,11 @@ function createData(db, front, back) {
 }
 createDataBtn.addEventListener("click", function(db) {
   createData(db, frontTextarea.value, backTextarea.value);
+  showDataBtn.style.display = "block";
   update(db);
   frontTextarea.value = '';
   backTextarea.value = '';
+  dataMessage.innerText = '';
 });
 
 
@@ -312,7 +384,7 @@ function update(db) {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
     foldersDataList.innerHTML = foldersArray.data[index].data.map((datas) => {
-      return `<li>${datas}</li>`;
+      return `<div><span class="data-span">${datas.front}</span><span class="data-span">${datas.back}</span></div>`;
     }).join("");
   };
 }

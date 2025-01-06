@@ -12,3 +12,29 @@
   /* border: 2px solid grey; */
 }
 
+.data-span {
+  border: 2px solid black;
+  padding: 0.5em;
+  display: inline-block;
+  width: 200px; 
+}
+
+.data-div {
+  display: block;
+}
+
+.folder-text-wraper {
+  display: flex;
+}
+
+.folder-text {
+  padding: 0;
+  margin-top: 1em;
+}
+
+.opened-folder {
+  margin-top: 1em;
+  margin-left: 3em;
+  color: red;
+  padding: 0;
+}
