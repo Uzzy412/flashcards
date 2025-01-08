@@ -7,32 +7,41 @@
   <body>
     
     <div class="container">
-      <span class="welcome-message">Welcome! Choose an existent profile or create one.</span><br><br>
+      <div class="left-section">
+        <span class="welcome-message">Welcome! Choose an existent profile or create one.</span><br><br>
 
-      <input id="add-profile-text" class="profile-name" placeholder="Profile name"/>
-      <button type="button" class="create-profile-btn">Create new profile</button>
-      <span class="profile-text"></span>
+        <input id="add-profile-text" class="profile-name" placeholder="Profile name"/>
+        <button type="button" class="create-profile-btn">Create new profile</button>
+        <span class="profile-text"></span>
 
-      <label for="select">Your profiles:</label>
-      <select id="select">
-      </select><br><br>
+        <label for="select">Your profiles:</label>
+        <select id="select">
+        </select><br><br>
 
-      <input id="add-folder-text" type="text" placeholder="Folder name">
-      <button type="button" class="add-folder-btn">Add folder</button>
+        <input id="add-folder-text" type="text" placeholder="Folder name">
+        <button type="button" class="add-folder-btn">Add folder</button>
 
-      <div class="folder-text-wraper">
-        <span class="folder-text"></span><span class="opened-folder"></span>
+        <div class="folder-text-wraper">
+          <span class="folder-text"></span><span class="opened-folder"></span>
+        </div>
+
+        <div class="folders"></div>
+        <span class="data-message"></span>
+
+        <textarea class="front"></textarea>
+        <textarea class="back"></textarea>
+        <button class="create-data-btn">Create data</button>
+        <button class="show-data-btn">Show data</button>
+        
+        <ul class="folders-data-list"></ul>
       </div>
 
-      <div class="folders"></div>
-      <span class="data-message"></span>
 
-      <textarea class="front"></textarea>
-      <textarea class="back"></textarea>
-      <button class="create-data-btn">Create data</button>
-      <button class="show-data-btn">Show data</button>
-      
-      <ul class="folders-data-list"></ul>
+      <div class="right-section">
+        <span class="learn-text">Learn new words or review old ones</span><br><br>
+        <div class="to-learn-wrapper">
+        </div>
+      </div>
 
     </div>
 

@@ -16,6 +16,9 @@ const backTextarea = document.querySelector(".back");
 const createDataBtn = document.querySelector(".create-data-btn");
 const showDataBtn = document.querySelector(".show-data-btn");
 const openedFolder = document.querySelector(".opened-folder");
+const rightSection = document.querySelector(".right-section");
+const learnText = document.querySelector(".learn-text");
+const toLearnWrapper = document.querySelector(".to-learn-wrapper");
 
 yourProfilesLabel.style.display = "none";
 select.style.display = "none";
@@ -37,6 +40,7 @@ let profilesAndData = [
 
 ];
 
+let currentIndex = 0;
 let currentFolder;
 let targetedFolder;
 let folder;
@@ -79,7 +83,6 @@ function createProfile(db, name) {
   showProfiles(db, name);
   profileAutoselect(profileNameInput.value);
   showFolders(db, name);
-
   profileNameInput.value = '';
 
   foldersDataList.innerHTML = '';
@@ -88,6 +91,7 @@ function createProfile(db, name) {
   showDataBtn.style.display = "none";
   createDataBtn.style.display = "none";
   foldersDataList.style.display = "none";
+  openedFolder.style.display = "none";
 
 }
 createProfileBtn.addEventListener("click", function(db) {
@@ -106,14 +110,12 @@ function showProfiles(db, value) {
     if (search.result >= 1) {
       console.log("There are profiles.");
       profileText.innerText = '';
-
       select.style.display = "inline-block";
       yourProfilesLabel.style.display = "inline-block";
 
       const tr2 = db.transaction("profiles");
       const store2 = tr2.objectStore("profiles");
       let result2 = store2.getAll();
-      
       result2.onsuccess = function() {
         select.innerHTML = result2.result.map(profile => {
           if (profile instanceof Object) {
@@ -156,21 +158,22 @@ function profileAutoselect(who) {
     }
   };
   search.onerror = function() {console.log("error")};
+
+  studyMenu(db);
 }
 
 
 
 function selectProfile(e) {
   db = request.result;
+  const tr = db.transaction("profiles", "readwrite");
+  const store = tr.objectStore("profiles");
+  const index = store.index("by_name");
 
   if (e.target.tag = "option") {
     profile = e.target.value;
     console.log(profile);
   }
-
-  const tr = db.transaction("profiles", "readwrite");
-  const store = tr.objectStore("profiles");
-  const index = store.index("by_name");
   const search = index.get(profile);
 
   search.onsuccess = function() {
@@ -197,10 +200,12 @@ function selectProfile(e) {
   foldersDataList.style.display = "none";
   dataMessage.innerText = '';
   openedFolder.innerText = '';
+
 }
 select.addEventListener("change", function(e) {
   selectProfile(e);
   showFolders(db, profile);
+  studyMenu(db);
 });
 
 
@@ -216,12 +221,10 @@ function addFolder(db, name) {
   search.onsuccess = function() {
     const profilesCopy = [...profilesAndData];
     profilesAndData = search.result;
-
     profilesAndData.data.push({ folderName: name, data: [] });
     
     const indexDelete = store.index("by_name");
     const deletion = indexDelete.getKey(profile);
-    
     deletion.onsuccess = function() {
       let id = deletion.result;
       const deleteRequest = store.delete(id);
@@ -238,6 +241,7 @@ addFolderBtn.addEventListener("click", function(db) {
   addFolder(db, folderNameInput.value);
   showFolders(db, profile);
   profileAutoselect(profile);
+  studyMenu(db);
   folderNameInput.value = '';
 });
 
@@ -347,7 +351,6 @@ function createData(db, front, back) {
   search.onsuccess = function() {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
-
     foldersArray.data[index].data.push({front: front, back: back});
 
     const indexDelete = store.index("by_name");
@@ -366,6 +369,7 @@ createDataBtn.addEventListener("click", function(db) {
   createData(db, frontTextarea.value, backTextarea.value);
   showDataBtn.style.display = "block";
   update(db);
+  studyMenu(db);
   frontTextarea.value = '';
   backTextarea.value = '';
   dataMessage.innerText = '';
@@ -388,6 +392,179 @@ function update(db) {
     }).join("");
   };
 }
+
+
+function studyMenu(db) {
+  db = request.result;
+  let tr = db.transaction("profiles", "readwrite");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    // const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+
+    toLearnWrapper.innerHTML = foldersArray.data.map((folder) => {
+      return `<div><span>${folder.folderName}</span>
+              <span class="f-length">${folder.data.length}</span>
+              <button id="${folder.folderName}" class="learn-btn">Practice</button></div>`
+    }).join("");
+  }  
+}
+
+function practice(e, db, profile) {
+  db = request.result;
+  let tr = db.transaction("profiles", "readwrite");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+
+    if (e.target.tagName === "BUTTON") {
+      currentFolder = e.target.id;
+      const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+      // let datasFront = foldersArray.data[index].data[currentIndex].front;
+      // let datasBack = foldersArray.data[index].data[currentIndex].back;
+
+      let length = foldersArray.data[index].data.length;
+
+      const modal = document.createElement("div");
+      const modalContent = document.createElement("div");
+      const closeModalButton = document.createElement("span");
+      const spanFrontData = document.createElement("span");
+      const spanBackData = document.createElement("span");
+      const nextBtn = document.createElement("button");
+      const backBtn = document.createElement("button");
+      const showAnswerBtn = document.createElement("button");
+      const flashcardsLength = document.createElement("span");
+
+      nextBtn.textContent = "Next";
+      backBtn.textContent = "Back";
+      showAnswerBtn.textContent = "Show answer";
+      flashcardsLength.innerText = length;
+
+      nextBtn.classList.add("next-btn");
+      backBtn.classList.add("back-btn");
+      showAnswerBtn.classList.add("show-answer-btn");
+      flashcardsLength.classList.add("flashcards-length");
+      
+      closeModalButton.innerHTML = "&times;";
+      closeModalButton.classList.add("close-modal");
+      modal.classList.add("modal");
+      modalContent.classList.add("modal-content");
+      spanFrontData.classList.add("span-front-data");
+      spanBackData.classList.add("span-back-data");
+      
+      document.body.append(modal);
+      modal.append(modalContent);
+      modalContent.append(closeModalButton);
+      modalContent.append(spanFrontData);
+      modalContent.append(spanBackData);
+      modalContent.append(nextBtn);
+      modalContent.append(backBtn);
+      modalContent.append(showAnswerBtn);
+      modalContent.append(flashcardsLength);
+
+      nextBtn.style.display = "none";
+      backBtn.style.display = "none";
+
+      spanFrontData.innerText = foldersArray.data[index].data[currentIndex].front;
+
+     
+
+      // show answer...
+      showAnswerBtn.addEventListener("click", showAnswerFunction);
+      function showAnswerFunction() {
+        showAnswerBtn.disabled = true;
+        length--;
+        if (length === 0) {
+          flashcardsLength.innerText = '';
+          backBtn.style.display = "block";
+        }
+        flashcardsLength.innerText = length;
+        spanBackData.innerText = foldersArray.data[index].data[currentIndex].back;
+        nextBtn.style.display = "block";
+        if (currentIndex >= foldersArray.data[index].data.length - 1) {
+          nextBtn.style.display = "none";
+          currentIndex = foldersArray.data[index].data.length - 1;
+        }
+      };
+
+      // next button...
+      nextBtn.addEventListener("click", nextFlashcard);
+      function nextFlashcard() {
+        showAnswerBtn.disabled = false;
+        currentIndex++;
+        spanFrontData.innerText = foldersArray.data[index].data[currentIndex].front;
+        spanBackData.innerText = '';
+        if (currentIndex >= foldersArray.data[index].data.length - 1) {
+          nextBtn.style.display = "none";
+          currentIndex = foldersArray.data[index].data.length - 1;
+        }
+        nextBtn.style.display = "none";
+      }
+
+      // back button...
+      backBtn.addEventListener("click", prevFlashcard);
+      function prevFlashcard() {
+        showAnswerBtn.disabled = false;
+        nextBtn.style.display = "block";
+        nextBtn.removeEventListener("click", nextFlashcard);
+        nextBtn.onclick = function() {
+          backBtn.style.display = "block";
+          showAnswerBtn.disabled = false;
+          currentIndex++;
+          spanFrontData.innerText = foldersArray.data[index].data[currentIndex].front;
+          spanBackData.innerText = '';
+          if (currentIndex >= foldersArray.data[index].data.length - 1) {
+            nextBtn.style.display = "none";
+            backBtn.style.display = "block";
+            currentIndex = foldersArray.data[index].data.length - 1;
+          }
+        };
+
+        showAnswerBtn.removeEventListener("click", showAnswerFunction);
+        showAnswerBtn.onclick = function() {
+          showAnswerBtn.disabled = true;
+          spanBackData.innerText = foldersArray.data[index].data[currentIndex].back;
+          if (currentIndex >= foldersArray.data[index].data.length - 1) {
+            nextBtn.style.display = "none";
+            backBtn.style.display = "block";
+            currentIndex = foldersArray.data[index].data.length - 1;
+          } else if (currentIndex <= 0) {
+            backBtn.style.display = "none";
+          }  
+        };
+
+        flashcardsLength.innerText = '';
+        currentIndex--;
+        spanFrontData.innerText = foldersArray.data[index].data[currentIndex].front;
+        if (currentIndex <= 0) {
+          backBtn.style.display = "none";
+        }
+        spanBackData.innerText = '';
+      }
+
+      // close modal...
+      closeModalButton.onclick = function() {
+        modal.style.display = "none";
+      };
+      window.onclick = function(e) {
+        if (e.target === modal) {
+          modal.style.display = "none";
+        }
+      };
+
+    } // if...
+    
+  } // search.onsuccess...
+}
+toLearnWrapper.addEventListener("click", function(e, db) {
+  practice(e, db, profile);
+});
 
 
 
