@@ -19,6 +19,8 @@ const openedFolder = document.querySelector(".opened-folder");
 const rightSection = document.querySelector(".right-section");
 const learnText = document.querySelector(".learn-text");
 const toLearnWrapper = document.querySelector(".to-learn-wrapper");
+const deleteProfileBtn = document.querySelector(".delete-profile");
+const profileThings = document.querySelector(".profile-things");
 
 
 
@@ -66,7 +68,7 @@ modal.style.display = "none";
 // ---------------- MODAL CODE --------------------- //
 
 
-
+rightSection.style.display = "none";
 yourProfilesLabel.style.display = "none";
 select.style.display = "none";
 folderNameInput.style.display = "none";
@@ -101,14 +103,12 @@ let request = indexedDB.open("flashcardsDatabase", 1);
 request.onerror = function() {
   console.log("Error accessing database" + request.error);
 };
-
 request.onupgradeneeded = function() {
   db = request.result;
   const profileStore = db.createObjectStore("profiles", { autoIncrement: true });
   const nameIndex = profileStore.createIndex("by_name", "profileName", { unique: false });
   const dataIndex = profileStore.createIndex("by_data", "data", { unique: false });
 };
-
 request.onsuccess = function() {
   db = request.result;
   console.log("Database is open.");
@@ -174,6 +174,12 @@ function showProfiles(db, value) {
     } else {
       profileText.innerText = "\n\nThere is no profile";
       console.log("There is no profile. Please create one.");
+      select.style.display = "none";
+      deleteProfileBtn.style.display = "none";
+      yourProfilesLabel.style.display = "none";
+      folderNameInput.style.display = "none";
+      addFolderBtn.style.display = "none";
+      // folderText.style.display = "none"
     }
   };
   search.onerror = function() {console.log("Error searching");};
@@ -190,6 +196,7 @@ function profileAutoselect(who) {
   const search = index.get(profile);
 
   search.onsuccess = function() {
+    deleteProfileBtn.style.display = "inline-block";
     console.log(search.result);
     if (search.result.data.length === 0) {
       console.log("This profile doesn't have any data saved.");
@@ -204,7 +211,7 @@ function profileAutoselect(who) {
     }
   };
   search.onerror = function() {console.log("error")};
-  studyMenu(db, foldersArray);
+  studyMenu(db);
 }
 
 
@@ -216,6 +223,7 @@ function selectProfile(e) {
   const index = store.index("by_name");
   if (e.target.tag = "option") {
     profile = e.target.value;
+    deleteProfileBtn.style.display = "inline-block";
     console.log(profile);
   }
   const search = index.get(profile);
@@ -244,12 +252,11 @@ function selectProfile(e) {
   foldersDataList.style.display = "none";
   dataMessage.innerText = '';
   openedFolder.innerText = '';
-
 }
 select.addEventListener("change", function(e) {
   selectProfile(e);
   showFolders(db, profile);
-  studyMenu(db, foldersArray);
+  studyMenu(db);
 });
 
 
@@ -299,6 +306,7 @@ function showFolders(db, value) {
   let search = index.get(value);
 
   search.onsuccess = function() {
+    folders.style.display = "block";
     folders.innerHTML = search.result.data.map((folder) => {
       if (folder.folderName.match(/copy/)) {
         return;
@@ -454,6 +462,7 @@ function studyMenu(db) {
   search.onsuccess = function() {
     foldersArrayCopy = search.result;
 
+    rightSection.style.display = "block";
     toLearnWrapper.innerHTML = foldersArrayCopy.data.map((folder) => {
       if (folder.data.length <= 0 && folder.folderName.match(/copy/)) {
         const arr = [...folder.folderName];
@@ -503,6 +512,7 @@ function study(e, db, profile) {
       console.log('Array length', arrayToShow.length);
       console.log('Array content', arrayToShow);
       spanFrontData.innerText = arrayToShow[currentIndex].front;
+      flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
     }
   }
 }
@@ -547,6 +557,7 @@ function showFlashcardAnswer() {
     addition.onsuccess = function() {
     }
     studyMenu(db);
+    flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
 
     if (currentIndex <= 0) {
       backBtn.disabled = true;
@@ -592,7 +603,6 @@ function newShowFlashcardAnswer() {
     nextBtn.disabled = false;
   }
 }
-
 
 // back answer...
 backBtn.addEventListener("click", backFlashcard);
@@ -665,4 +675,59 @@ closeModalButton.addEventListener("click", () => {
   }
 });
 
+// ----------------------------------------------------------- //
+
+
+
+deleteProfileBtn.addEventListener("click", deleteProfile);
+function deleteProfile() {
+  db = request.result;
+  let tr = db.transaction("profiles", "readwrite");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.getAll();
+
+  search.onsuccess = function() {
+    profilesAndData = search.result;
+    const index = profilesAndData.map(profile => profile.profileName).indexOf(profile);
+    const confirmation = confirm("Are you sure you want to delete " + profile + " profile?");
+    if (confirmation) {
+      profilesAndData.splice(index, 1);
+      const tr2 = db.transaction("profiles", "readwrite");
+      const store = tr2.objectStore("profiles");
+      const indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        const deleted = store.delete(deletion.result);
+        console.log('deleted');
+      };
+
+      showProfiles(db);
+      select.style.display = "none";
+      deleteProfileBtn.style.display = "none";
+      folderNameInput.style.display = "none";
+      addFolderBtn.style.display = "none";
+
+      folderText.innerText = '';
+      folders.style.display = "none";
+      rightSection.style.display = "none";
+      frontTextarea.style.display = "none";
+      backTextarea.style.display = "none";
+
+      createDataBtn.style.display = "none";
+      showDataBtn.style.display = "none";
+      foldersDataList.style.display = "none";
+      dataMessage.innerText = "";
+      openedFolder.innerText = "";
+
+    } else {
+      return;
+    }  
+  }  
+}
+
+
+
+function deleteFolder() {}
+function deleteFlashcard() {}
 

@@ -121,7 +121,7 @@
   font-size: 20px;
   position: absolute;
   top: 70px;
-  left: 240px;
+  left: 245px;
 }
 
 .close-modal {
@@ -136,4 +136,8 @@
 
 .close-modal:hover {
   color: black;
+}
+
+.delete-profile {
+  display: none;
 }

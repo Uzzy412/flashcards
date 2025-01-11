@@ -14,12 +14,18 @@
         <button type="button" class="create-profile-btn">Create new profile</button>
         <span class="profile-text"></span>
 
-        <label for="select">Your profiles:</label>
-        <select id="select">
-        </select><br><br>
+        <div class="profile-things">
+          <label for="select">Your profiles:</label>
+          <select id="select">
+          </select>
+          
+          <button class="delete-profile">Delete profile</button>
 
-        <input id="add-folder-text" type="text" placeholder="Folder name">
-        <button type="button" class="add-folder-btn">Add folder</button>
+          <br><br>
+
+          <input id="add-folder-text" type="text" placeholder="Folder name">
+          <button type="button" class="add-folder-btn">Add folder</button>
+        </div>
 
         <div class="folder-text-wraper">
           <span class="folder-text"></span><span class="opened-folder"></span>
@@ -28,8 +34,8 @@
         <div class="folders"></div>
         <span class="data-message"></span>
 
-        <textarea class="front"></textarea>
-        <textarea class="back"></textarea>
+        <textarea class="front" placeholder="Front flashcard"></textarea>
+        <textarea class="back" placeholder="Back flashcard"></textarea>
         <button class="create-data-btn">Create data</button>
         <button class="show-data-btn">Show data</button>
         
