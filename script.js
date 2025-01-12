@@ -20,6 +20,7 @@ const rightSection = document.querySelector(".right-section");
 const learnText = document.querySelector(".learn-text");
 const toLearnWrapper = document.querySelector(".to-learn-wrapper");
 const deleteProfileBtn = document.querySelector(".delete-profile");
+const deleteFolderBtn = document.querySelector(".delete-folder");
 const profileThings = document.querySelector(".profile-things");
 
 
@@ -187,8 +188,7 @@ function showProfiles(db, value) {
 
 
 
-function profileAutoselect(who) {
-  profile = who;
+function profileAutoselect() {
   db = request.result;
   const tr = db.transaction("profiles");
   const store = tr.objectStore("profiles");
@@ -203,6 +203,7 @@ function profileAutoselect(who) {
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
       folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
+      rightSection.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
@@ -235,11 +236,12 @@ function selectProfile(e) {
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
       folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
+      rightSection.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "Your folders\n\n";
+      folderText.innerText = "Your folders";
     }
   };
   search.onerror = function() {console.log("error")};
@@ -255,7 +257,7 @@ function selectProfile(e) {
 }
 select.addEventListener("change", function(e) {
   selectProfile(e);
-  showFolders(db, profile);
+  showFolders(db);
   studyMenu(db);
 });
 
@@ -269,7 +271,7 @@ function addFolder(db, name) {
   let search = index.get(profile);
 
   search.onsuccess = function() {
-    const profilesCopy = [...profilesAndData];
+    // const profilesCopy = [...profilesAndData];
     profilesAndData = search.result;
     profilesAndData.data.push({ folderName: name, data: [] });
     profilesAndData.data.push({ folderName: `${name} copy`, data: [] });
@@ -284,26 +286,27 @@ function addFolder(db, name) {
     const storeFolder = store.add(profilesAndData);
     storeFolder.onsuccess = () => console.log(`${name} folder was added to profile`);
     storeFolder.onerror = () => console.log(storeFolder.error);
-    profilesAndData = [...profilesCopy];
+    // profilesAndData = [...profilesCopy];
+    profilesAndData = [];
   };
 }
 addFolderBtn.addEventListener("click", function(db) {
   db = request.result;
   addFolder(db, folderNameInput.value);
-  showFolders(db, profile);
-  profileAutoselect(profile);
-  studyMenu(db, foldersArray);
+  showFolders(db);
+  profileAutoselect();
+  studyMenu(db);
   folderNameInput.value = '';
 });
 
 
 
-function showFolders(db, value) {
+function showFolders(db) {
   db = request.result;
   let tr = db.transaction("profiles");
   let store = tr.objectStore("profiles");
   let index = store.index("by_name");
-  let search = index.get(value);
+  let search = index.get(profile);
 
   search.onsuccess = function() {
     folders.style.display = "block";
@@ -328,8 +331,8 @@ function openFolders(e, db, whose) {
 
   search.onsuccess = function() {
     foldersArray = search.result;
-
     if (e.target.tagName === "BUTTON") {
+      deleteFolderBtn.style.display = "inline-block";
       currentFolder = e.target.innerText;
       const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
       console.log(currentFolder);
@@ -372,7 +375,6 @@ function showData(db, whose) {
   search.onsuccess = function() {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
-  
     if (search.result.data[index].data.length > 0) {
       foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
         return `<div id="data-div"><span class="data-span">${datas.front}</span><span class="data-span">${datas.back}</span></div>`;
@@ -452,6 +454,7 @@ function update(db) {
 
 
 // --------------------- STUDY FEATURES ------------------------ //
+
 function studyMenu(db) {
   db = request.result;
   let tr = db.transaction("profiles", "readwrite");
@@ -564,6 +567,21 @@ function showFlashcardAnswer() {
     }
   }
 }
+function newShowFlashcardAnswer() {
+  showAnswerBtn.disabled = true;
+  spanBackData.innerText = arrayToShow[currentIndex].back;
+  if (currentIndex >= arrayToShow.length - 1) {
+    currentIndex = arrayToShow.length - 1;
+    nextBtn.disabled = true;
+    backBtn.disabled = false;
+  } else {
+    nextBtn.disabled = false;
+  }
+  if (currentIndex <= 0) {
+    backBtn.disabled = true;
+    nextBtn.disabled = false;
+  }
+}
 
 // next answer...
 nextBtn.addEventListener("click", nextFlashcard);
@@ -588,21 +606,21 @@ function nextFlashcard() {
     }
   }
 }
-function newShowFlashcardAnswer() {
-  showAnswerBtn.disabled = true;
-  spanBackData.innerText = arrayToShow[currentIndex].back;
+function newNextFlashcard() {
+  showAnswerBtn.disabled = false;
+  nextBtn.disabled = false;
+  currentIndex++;
+  spanFrontData.innerText = arrayToShow[currentIndex].front;
+  spanBackData.innerText = '';
   if (currentIndex >= arrayToShow.length - 1) {
     currentIndex = arrayToShow.length - 1;
     nextBtn.disabled = true;
     backBtn.disabled = false;
   } else {
-    nextBtn.disabled = false;
-  }
-  if (currentIndex <= 0) {
-    backBtn.disabled = true;
-    nextBtn.disabled = false;
+    backBtn.disabled = false;
   }
 }
+
 
 // back answer...
 backBtn.addEventListener("click", backFlashcard);
@@ -630,20 +648,7 @@ function backFlashcard() {
     nextBtn.addEventListener("click", newNextFlashcard);
   }
 }
-function newNextFlashcard() {
-  showAnswerBtn.disabled = false;
-  nextBtn.disabled = false;
-  currentIndex++;
-  spanFrontData.innerText = arrayToShow[currentIndex].front;
-  spanBackData.innerText = '';
-  if (currentIndex >= arrayToShow.length - 1) {
-    currentIndex = arrayToShow.length - 1;
-    nextBtn.disabled = true;
-    backBtn.disabled = false;
-  } else {
-    backBtn.disabled = false;
-  }
-}
+
 
 // close study...
 window.addEventListener("click", (e) => {
@@ -670,6 +675,12 @@ closeModalButton.addEventListener("click", () => {
     showAnswerBtn.addEventListener("click", showFlashcardAnswer);
     nextBtn.removeEventListener("click", newNextFlashcard);
     nextBtn.addEventListener("click", nextFlashcard);
+    for (let i = 0; i < 9999; i++) {
+      currentIndex--;
+      if (currentIndex <= 0) {
+        currentIndex = 0;
+      }
+    }
   } else {
     modal.style.display = "block";
   }
@@ -719,7 +730,6 @@ function deleteProfile() {
       foldersDataList.style.display = "none";
       dataMessage.innerText = "";
       openedFolder.innerText = "";
-
     } else {
       return;
     }  
@@ -727,7 +737,57 @@ function deleteProfile() {
 }
 
 
+deleteFolderBtn.addEventListener("click", deleteFolder);
+function deleteFolder() {
+  db = request.result;
+  let tr = db.transaction("profiles", "readwrite");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
 
-function deleteFolder() {}
+  search.onsuccess = function() {
+    profilesAndData = search.result;
+    currentFolder = openedFolder.innerText;
+    const index = profilesAndData.data.map(folder => folder.folderName).indexOf(currentFolder);
+    const confirmation = confirm("Are you sure you want to delete " + currentFolder + " folder?");
+
+    if (confirmation) {
+      profilesAndData.data.splice(index, 1);
+      const indexCopy = profilesAndData.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+      profilesAndData.data.splice(indexCopy, 1);
+      console.log(profilesAndData);
+      const tr2 = db.transaction("profiles", "readwrite");
+      const store = tr2.objectStore("profiles");
+      const indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        const deleted = store.delete(deletion.result);
+        console.log('deleted');
+      };
+      const addition = store.add(profilesAndData);
+
+      studyMenu(db);
+      showFolders(db);
+      profileAutoselect();
+      deleteFolderBtn.style.display = "none";
+      folderText.innerText = '';
+      frontTextarea.style.display = "none";
+      backTextarea.style.display = "none";
+      createDataBtn.style.display = "none";
+      showDataBtn.style.display = "none";
+      foldersDataList.style.display = "none";
+      dataMessage.innerText = "";
+      openedFolder.innerText = "";
+
+      profilesAndData = [];
+      // profilesAndData.splice(0, profilesAndData.length);
+      
+    } else {
+      return;
+    }  
+  }  
+}
+
+
 function deleteFlashcard() {}
 

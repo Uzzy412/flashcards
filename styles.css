@@ -36,19 +36,23 @@
 
 .folder-text-wraper {
   display: flex;
+  justify-content: space-between;
+  padding: 0;
+  margin: 0;
 }
 
 .folder-text {
   padding: 0;
-  margin-top: 1em;
 }
 
 .opened-folder {
-  margin-top: 1em;
-  margin-left: 3em;
   color: red;
   padding: 0;
 }
+
+/* .delete-folder {
+  height: 30px;
+} */
 
 .f-length {
   position: absolute;
@@ -139,5 +143,9 @@
 }
 
 .delete-profile {
+  display: none;
+}
+
+.delete-folder {
   display: none;
 }
