@@ -24,14 +24,27 @@
 }
 
 .data-span {
-  border: 2px solid black;
+  border: 1px solid rgb(138, 137, 137);
   padding: 0.5em;
   display: inline-block;
-  width: 200px; 
+  width: 200px;
 }
 
 .data-div {
-  display: block;
+  cursor: pointer;
+  position: relative;
+
+  button {
+    visibility: hidden;
+  }
+}
+
+.data-div:hover {
+  background-color: rgb(250, 250, 250);
+}
+
+.data-div:hover button {
+  visibility: visible;
 }
 
 .folder-text-wraper {
@@ -49,10 +62,6 @@
   color: red;
   padding: 0;
 }
-
-/* .delete-folder {
-  height: 30px;
-} */
 
 .f-length {
   position: absolute;
@@ -148,4 +157,60 @@
 
 .delete-folder {
   display: none;
+}
+
+/* .edit-flash-btn {
+  display: none;
+}
+
+.delete-flash-btn {
+  display: none;
+} */
+
+.folders-data-list {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  position: relative;
+  /* border: 2px solid black; */
+}
+
+/* #data-div {
+  border: 2px solid red;
+} */
+
+#data-div-modal {
+  position: absolute;
+  border: 1px solid red;
+  z-index: 1;
+  height: 100%;
+  width: 100%;
+}
+
+.edit-flash-btn {
+  position: relative;
+}
+
+.delete-flash-btn {
+  position: relative;
+}
+
+.flashcards-modal {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.flashcards-modal-content {
+  position: absolute;
+  top: 300px;
+  left: 250px;
+}
+
+.flashcards-edit-confirm {
+  display: block;
 }

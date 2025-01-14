@@ -22,6 +22,12 @@ const toLearnWrapper = document.querySelector(".to-learn-wrapper");
 const deleteProfileBtn = document.querySelector(".delete-profile");
 const deleteFolderBtn = document.querySelector(".delete-folder");
 const profileThings = document.querySelector(".profile-things");
+const flashcardsModal = document.querySelector(".flashcards-modal");
+const flashcardsModalContent = document.querySelector(".flashcards-modal-content");
+const flashcardsModalCloseBtn = document.querySelector(".flashcards-modal-close");
+const flashcardsModalFront = document.querySelector(".flashcards-modal-front");
+const flashcardsModalBack = document.querySelector(".flashcards-modal-back");
+const flashcardsEditConfirmBtn = document.querySelector(".flashcards-edit-confirm");
 
 
 
@@ -92,6 +98,8 @@ let profilesAndData = [
 
 let currentIndex = 0;
 let currentFolder;
+let currentFlashcard;
+let currentClass;
 let targetedFolder;
 let folder;
 let foldersArray = [];
@@ -129,8 +137,8 @@ function createProfile(db, name) {
   console.log(db.objectStoreNames.length);
 
   showProfiles(db, name);
-  profileAutoselect(profileNameInput.value);
-  showFolders(db, name);
+  profileAutoselect();
+  showFolders(db);
   profileNameInput.value = '';
 
   foldersDataList.innerHTML = '';
@@ -140,7 +148,6 @@ function createProfile(db, name) {
   createDataBtn.style.display = "none";
   foldersDataList.style.display = "none";
   openedFolder.style.display = "none";
-
 }
 createProfileBtn.addEventListener("click", function(db) {
   db = request.result;
@@ -160,6 +167,7 @@ function showProfiles(db, value) {
       profileText.innerText = '';
       select.style.display = "inline-block";
       yourProfilesLabel.style.display = "inline-block";
+      deleteFolderBtn.style.display = "none";
 
       const tr2 = db.transaction("profiles");
       const store2 = tr2.objectStore("profiles");
@@ -204,6 +212,7 @@ function profileAutoselect() {
       addFolderBtn.style.display = "inline-block";
       folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
       rightSection.style.display = "none";
+      deleteFolderBtn.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
@@ -237,6 +246,7 @@ function selectProfile(e) {
       addFolderBtn.style.display = "inline-block";
       folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
       rightSection.style.display = "none";
+      deleteFolderBtn.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
@@ -271,7 +281,6 @@ function addFolder(db, name) {
   let search = index.get(profile);
 
   search.onsuccess = function() {
-    // const profilesCopy = [...profilesAndData];
     profilesAndData = search.result;
     profilesAndData.data.push({ folderName: name, data: [] });
     profilesAndData.data.push({ folderName: `${name} copy`, data: [] });
@@ -322,12 +331,12 @@ function showFolders(db) {
 
 
 
-function openFolders(e, db, whose) {
+function openFolders(e, db) {
   db = request.result;
   let tr = db.transaction("profiles");
   let store = tr.objectStore("profiles");
   let index = store.index("by_name");
-  let search = index.get(whose);
+  let search = index.get(profile);
 
   search.onsuccess = function() {
     foldersArray = search.result;
@@ -359,42 +368,8 @@ function openFolders(e, db, whose) {
 }
 folders.addEventListener("click", function(e, db) {
   db = request.result;
-  openFolders(e, db, profile);
+  openFolders(e, db);
   foldersDataList.style.display = "none";
-});
-
-
-
-function showData(db, whose) {
-  db = request.result;
-  let tr = db.transaction("profiles");
-  let store = tr.objectStore("profiles");
-  let index = store.index("by_name");
-  let search = index.get(whose);
-  
-  search.onsuccess = function() {
-    foldersArray = search.result;
-    const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
-    if (search.result.data[index].data.length > 0) {
-      foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
-        return `<div id="data-div"><span class="data-span">${datas.front}</span><span class="data-span">${datas.back}</span></div>`;
-      }).join("");
-    } else {
-      foldersDataList.innerHTML = '';
-      dataMessage.innerText = "\nNo data in this folder";
-    }
-  }    
-}
-showDataBtn.addEventListener("click", function(db) {
-  db = request.result;
-  showData(db, profile);
-});
-showDataBtn.addEventListener("click", () => {
-  if (foldersDataList.style.display === "block") {
-    foldersDataList.style.display = "none";
-  } else {
-    foldersDataList.style.display = "block";
-  }
 });
 
 
@@ -410,8 +385,9 @@ function createData(db, front, back) {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
     const index2 = foldersArray.data.map(i => i.folderName).indexOf(`${currentFolder} copy`);
-    foldersArray.data[index].data.push({front: front, back: back});
-    foldersArray.data[index2].data.push({front: front, back: back});
+    let id = foldersArray.data[index].data.length;
+    foldersArray.data[index].data.push({id: id, front: front, back: back});
+    foldersArray.data[index2].data.push({id: id, front: front, back: back});
 
     const indexDelete = store.index("by_name");
     const deletion = indexDelete.getKey(profile);
@@ -428,7 +404,7 @@ function createData(db, front, back) {
 createDataBtn.addEventListener("click", function(db) {
   createData(db, frontTextarea.value, backTextarea.value);
   showDataBtn.style.display = "block";
-  update(db);
+  showData(db);
   studyMenu(db);
   frontTextarea.value = '';
   backTextarea.value = '';
@@ -436,7 +412,7 @@ createDataBtn.addEventListener("click", function(db) {
 });
 
 
-function update(db) {
+function showData(db) {
   db = request.result;
   let tr = db.transaction("profiles");
   let store = tr.objectStore("profiles");
@@ -446,11 +422,94 @@ function update(db) {
   search.onsuccess = function() {
     foldersArray = search.result;
     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
-    foldersDataList.innerHTML = foldersArray.data[index].data.map((datas) => {
-      return `<div><span class="data-span">${datas.front}</span><span class="data-span">${datas.back}</span></div>`;
-    }).join("");
-  };
+    if (search.result.data[index].data.length > 0) {
+      foldersDataList.innerHTML = search.result.data[index].data.map((datas) => {
+        return `
+            <div class="data-div">
+              <span class="data-span">${datas.front}</span>
+              <span class="data-span">${datas.back}</span>
+              <button class="${datas.front.split(' ').join('')}" data-id="${datas.id}" data-edit="edit">Edit</button>
+              <button class="${datas.front.split(' ').join('')}" data-id="${datas.id}" data-del="del">X</button>
+            </div>`;
+      }).join("");
+    } else {
+      foldersDataList.innerHTML = '';
+      dataMessage.innerText = "\nNo data in this folder";
+      showDataBtn.style.display = "none";
+    }
+
+    const dataDiv = document.querySelectorAll('.data-div');
+    dataDiv.forEach((flash) => {
+      flash.addEventListener("click", (e) => {
+        if (e.target.tagName === "BUTTON") {
+          currentFlashcard = e.target.dataset.id;
+          currentClass = e.target.className;
+        }
+        if (e.target.dataset.del === "del") {
+          deleteFlashcard();
+        }
+        if (e.target.dataset.edit === "edit") {
+          editFlashcardMenu();
+        }
+      });
+    });
+
+
+    // const edit = document.querySelectorAll('button[data-edit="edit"]');
+    // edit.forEach(button => edit.addEventListener("click", function(e) {
+    //   currentFlashcard = e.target.className;
+    //   console.log(currentFlashcard);  
+    //   editFlashcard(currentFlashcard);
+    // }));
+
+    // const del = document.querySelector('button[data-del="del"]');
+    // del.addEventListener("click", function() {
+    //   deleteFlashcard(currentFlashcard);
+    // });
+
+
+    // const dataDiv = document.querySelectorAll('.data-div');
+    // dataDiv.forEach((flash) => {
+    //   flash.addEventListener("click", (e) => {
+    //     if (e.target.tagName === "BUTTON") {
+    //       currentFlashcard = e.target.className;
+    //     }  
+    //   });
+    // });
+  }    
 }
+showDataBtn.addEventListener("click", function(db) {
+  db = request.result;
+  showData(db, profile);
+});
+showDataBtn.addEventListener("click", () => {
+  if (foldersDataList.style.display === "block") {
+    foldersDataList.style.display = "none";
+  } else {
+    foldersDataList.style.display = "block";
+  }
+});
+
+
+// function update(db) {
+//   db = request.result;
+//   let tr = db.transaction("profiles");
+//   let store = tr.objectStore("profiles");
+//   let index = store.index("by_name");
+//   let search = index.get(profile);
+  
+//   search.onsuccess = function() {
+//     foldersArray = search.result;
+//     const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
+//     foldersDataList.innerHTML = foldersArray.data[index].data.map((datas) => {
+//       return `
+//         <div>
+//           <span class="data-span">${datas.front}</span>
+//           <span class="data-span">${datas.back}</span>
+//         </div>`;
+//     }).join("");
+//   };
+// }
 
 
 // --------------------- STUDY FEATURES ------------------------ //
@@ -490,7 +549,7 @@ function studyMenu(db) {
   }  
 }
 
-function study(e, db, profile) {
+function study(e, db) {
   if (e.target.tagName === "BUTTON") {
     db = request.result;
     let tr = db.transaction("profiles", "readwrite");
@@ -502,7 +561,6 @@ function study(e, db, profile) {
       foldersArray = search.result;
       foldersArrayCopy = search.result;
 
-      console.log('Current index:', currentIndex);
       modal.style.display = "block";
       showAnswerBtn.disabled = false;
       backBtn.disabled = true;
@@ -520,7 +578,7 @@ function study(e, db, profile) {
   }
 }
 toLearnWrapper.addEventListener("click", function(e, db) {
-  study(e, db, profile);
+  study(e, db);
 });
 
 // show answer...
@@ -651,22 +709,17 @@ function backFlashcard() {
 
 
 // close study...
-window.addEventListener("click", (e) => {
-  if (e.target === modal) {
-    modal.style.display = "none";
-    arrayToShow.splice(0, arrayToShow.length);
-    showAnswerBtn.removeEventListener("click", newShowFlashcardAnswer);
-    showAnswerBtn.addEventListener("click", showFlashcardAnswer);
-    nextBtn.removeEventListener("click", newNextFlashcard);
-    nextBtn.addEventListener("click", nextFlashcard);
-    for (let i = 0; i < 9999; i++) {
-      currentIndex--;
-      if (currentIndex <= 0) {
-        currentIndex = 0;
-      }
-    }
-  }  
-});
+// window.addEventListener("click", (e) => {
+//   if (e.target === modal) {
+//     modal.style.display = "none";
+//     arrayToShow.splice(0, arrayToShow.length);
+//     showAnswerBtn.removeEventListener("click", newShowFlashcardAnswer);
+//     showAnswerBtn.addEventListener("click", showFlashcardAnswer);
+//     nextBtn.removeEventListener("click", newNextFlashcard);
+//     nextBtn.addEventListener("click", nextFlashcard);
+//     currentIndex = 0;
+//   }  
+// });
 closeModalButton.addEventListener("click", () => {
   if (modal.style.display === "block") {
     modal.style.display = "none";
@@ -675,21 +728,16 @@ closeModalButton.addEventListener("click", () => {
     showAnswerBtn.addEventListener("click", showFlashcardAnswer);
     nextBtn.removeEventListener("click", newNextFlashcard);
     nextBtn.addEventListener("click", nextFlashcard);
-    for (let i = 0; i < 9999; i++) {
-      currentIndex--;
-      if (currentIndex <= 0) {
-        currentIndex = 0;
-      }
-    }
+    currentIndex = 0;
   } else {
     modal.style.display = "block";
   }
 });
 
-// ----------------------------------------------------------- //
+// -----------------------------//------------------------------ //
 
 
-
+// delete profile...
 deleteProfileBtn.addEventListener("click", deleteProfile);
 function deleteProfile() {
   db = request.result;
@@ -736,7 +784,7 @@ function deleteProfile() {
   }  
 }
 
-
+// delete folder...
 deleteFolderBtn.addEventListener("click", deleteFolder);
 function deleteFolder() {
   db = request.result;
@@ -755,7 +803,6 @@ function deleteFolder() {
       profilesAndData.data.splice(index, 1);
       const indexCopy = profilesAndData.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
       profilesAndData.data.splice(indexCopy, 1);
-      console.log(profilesAndData);
       const tr2 = db.transaction("profiles", "readwrite");
       const store = tr2.objectStore("profiles");
       const indexDelete = store.index("by_name");
@@ -771,16 +818,16 @@ function deleteFolder() {
       profileAutoselect();
       deleteFolderBtn.style.display = "none";
       folderText.innerText = '';
+
       frontTextarea.style.display = "none";
       backTextarea.style.display = "none";
       createDataBtn.style.display = "none";
       showDataBtn.style.display = "none";
+
       foldersDataList.style.display = "none";
       dataMessage.innerText = "";
       openedFolder.innerText = "";
-
       profilesAndData = [];
-      // profilesAndData.splice(0, profilesAndData.length);
       
     } else {
       return;
@@ -788,6 +835,123 @@ function deleteFolder() {
   }  
 }
 
+// delete flashcard...
+function deleteFlashcard() {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
 
-function deleteFlashcard() {}
+  search.onsuccess = function() {
+    profilesAndData = search.result;
+    let folderIndex = profilesAndData.data.map(folder => folder.folderName).indexOf(currentFolder);
+    let flashcardIndex = profilesAndData.data[folderIndex].data.map(flashcard => flashcard.id).indexOf(Number(currentFlashcard));
+
+    const confirmation = confirm("Are you sure you want to delete this flashcard?");
+    if (confirmation) {
+      profilesAndData.data[folderIndex].data.splice(flashcardIndex, 1);
+      let folderIndexCopy = profilesAndData.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+      let flashcardIndexCopy = profilesAndData.data[folderIndexCopy].data.map(flashcard => flashcard.id).indexOf(Number(currentFlashcard));
+      profilesAndData.data[folderIndexCopy].data.splice(flashcardIndexCopy, 1);
+
+      const tr2 = db.transaction("profiles", "readwrite");
+      const store = tr2.objectStore("profiles");
+      const indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        const deleted = store.delete(deletion.result);
+        console.log("deleted");
+      };
+      const addition = store.add(profilesAndData);
+
+      showData(db);
+      studyMenu(db);
+    } else {return;}
+  }
+}
+
+// edit flashcard menu...
+function editFlashcardMenu() {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    profilesAndData = search.result;
+    let folderIndex = profilesAndData.data.map(folder => folder.folderName).indexOf(currentFolder);
+    let flashcardIndex = profilesAndData.data[folderIndex].data.map(flashcard => flashcard.id).indexOf(Number(currentFlashcard));
+    flashcardsModal.style.display = "block";
+   
+    const flashcard = document.querySelector(`.${currentClass}`);
+    const rect = flashcard.getBoundingClientRect();
+    flashcardsModalContent.style.top = `${rect.y - 10}px`;
+
+    flashcardsModalFront.value = profilesAndData.data[folderIndex].data[flashcardIndex].front;
+    flashcardsModalBack.value = profilesAndData.data[folderIndex].data[flashcardIndex].back;
+    // close modal...
+    flashcardsModalCloseBtn.addEventListener("click", () => flashcardsModal.style.display = "none");
+  }  
+}
+
+// confirm edit... 
+flashcardsEditConfirmBtn.addEventListener("click", confirmFlashcardEdit);
+function confirmFlashcardEdit() {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    profilesAndData = search.result;
+    let folderIndex = profilesAndData.data.map(folder => folder.folderName).indexOf(currentFolder);
+    let flashcardIndex = profilesAndData.data[folderIndex].data.map(flashcard => flashcard.id).indexOf(Number(currentFlashcard));
+    let folderIndexCopy = profilesAndData.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+    let flashcardIndexCopy = profilesAndData.data[folderIndexCopy].data.map(flashcard => flashcard.id).indexOf(Number(currentFlashcard));
+
+    if (!profilesAndData.data[folderIndexCopy].data[flashcardIndexCopy]) {
+      profilesAndData.data[folderIndex].data[flashcardIndex].front = flashcardsModalFront.value;
+      profilesAndData.data[folderIndex].data[flashcardIndex].back = flashcardsModalBack.value;
+    } else {
+      profilesAndData.data[folderIndex].data[flashcardIndex].front = flashcardsModalFront.value;
+      profilesAndData.data[folderIndex].data[flashcardIndex].back = flashcardsModalBack.value;
+      profilesAndData.data[folderIndexCopy].data[flashcardIndexCopy].front = flashcardsModalFront.value;
+      profilesAndData.data[folderIndexCopy].data[flashcardIndexCopy].back = flashcardsModalBack.value;
+    }
+
+    if (flashcardsModalFront.value === '' && flashcardsModalBack.value === '') {
+      alert("Please add values for your flashcards");
+      return;
+    }
+    if (flashcardsModalFront.value === '') {
+      alert("Please add a value for your front flashcard");
+      return;
+    } 
+    if (flashcardsModalBack.value === '') {
+      alert("Please add a value for your back flashcard");
+      return;
+    }
+    
+    const tr2 = db.transaction("profiles", "readwrite");
+    const store = tr2.objectStore("profiles");
+    const indexDelete = store.index("by_name");
+    const deletion = indexDelete.getKey(profile);
+    deletion.onsuccess = function() {
+      const deleted = store.delete(deletion.result);
+      console.log('deleted');
+    };
+    const addition = store.add(profilesAndData);
+
+    showData(db);
+    studyMenu(db);
+    flashcardsModal.style.display = "none";
+    console.log("Edited successfuly");
+    profilesAndData = [];
+  }
+}
+
+
 
