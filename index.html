@@ -7,42 +7,40 @@
   <body>
     
     <div class="container">
-      <div class="left-section">
-        <span class="welcome-message">Welcome! Choose an existent profile or create one.</span><br><br>
 
+      <!----------- LEFT SECTION CREATE DATA ----------->
+      <div class="left-section">
+
+        <!----------profile creation, selection, deletion---------->
+        <span class="welcome-message">Welcome! Choose an existent profile or create one.</span><br><br>
         <input id="add-profile-text" class="profile-name" placeholder="Profile name"/>
         <button type="button" class="create-profile-btn">Create new profile</button>
         <span class="profile-text"></span>
+        <label for="select">Your profiles:</label>
+        <select id="select" class="select-profile">
+        </select>
+        <button class="delete-profile">Delete profile</button>
+        <br><br>
 
-        <div class="profile-things">
-          <label for="select">Your profiles:</label>
-          <select id="select">
-          </select>
-          
-          <button class="delete-profile">Delete profile</button>
-
-          <br><br>
-
-          <input id="add-folder-text" type="text" placeholder="Folder name">
-          <button type="button" class="add-folder-btn">Add folder</button>
-        </div>
-
+        <!----------folder addition, opening, removal----------->
+        <input id="add-folder-text" class="add-folder-text" type="text" placeholder="Folder name">
+        <button type="button" class="add-folder-btn">Add folder</button>
         <div class="folder-text-wraper">
           <span class="folder-text"></span>
           <span class="opened-folder"></span>
           <button class="delete-folder">Delete folder</button>
         </div>
-        
-
         <div class="folders"></div>
         <span class="data-message"></span>
 
+        <!--------flashcards creation, view, edit, delete------->
         <textarea class="front" placeholder="Front flashcard"></textarea>
         <textarea class="back" placeholder="Back flashcard"></textarea>
         <button class="create-data-btn">Create data</button>
         <button class="show-data-btn">Show data</button>
-        
-        <div class="folders-data-list"></div>
+        <span class="flashcards-total"></span>
+        <div class="folders-data-list">
+        </div>
 
         <div class="flashcards-modal">
           <div class="flashcards-modal-content">
@@ -52,14 +50,69 @@
             <button class="flashcards-edit-confirm">Confirm</button>
           </div>
         </div>
+
       </div>
+      <!--------------- end of left section -------------->
+    
 
 
+      <!--------------- RIGHT SECTION STUDY -------------->
       <div class="right-section">
         <span class="learn-text">Learn new words or review old ones</span><br><br>
         <div class="to-learn-wrapper">
         </div>
       </div>
+      <div class="modal">
+        <div class="modal-content">
+          <span class="close-modal-button">&times;</span>
+          <span class="flashcards-length"></span>
+          <span class="span-front-data"></span>
+          <span class="span-back-data"></span>
+          <button class="back-btn">Back</button>
+          <button class="show-answer-btn">Show answer</button>
+          <button class="next-btn">Next</button>
+        </div>
+      </div>
+      <!--------------- end of right section -------------->
+
+
+
+      <!--------------- SETTINGS SECTION ---------------->
+      <div class="settings-section">
+        <span class="settings-text">Settings</span>
+        <div>
+          <span>How many flashcards to practice?</span><br><br>
+
+          <label for="which-folder">Select folder</label>
+          <select id="which-folder" class="which-folder">
+          </select><br><br>
+
+          <!---------news settings--------->
+          <label for="new">New</label>
+          <input id="new" type="number" inputmode="numeric" placeholder="number" value="5">
+          <label for="order-for-new">Select order</label>
+          <select id="order-for-new">
+            <option value="random">Random</option>
+            <option value="old-to-new">From old to new</option>
+            <option value="new-to-old">From new to old</option>
+          </select><br><br>
+          
+
+          <!--------reviews settings-------->
+          <label for="review">Review</label>
+          <input id="review" type="number" inputmode="numeric" placeholder="number" value="5">
+          <label for="order-for-review">Select order</label>
+          <select id="order-for-review">
+            <option value="random">Random</option>
+            <option value="old-to-new">From old to new</option>
+            <option value="new-to-old">From new to old</option>
+            <option value="spaced-repetition">Spaced repetition</option>
+          </select>
+        </div><br>
+        
+        <button class="save-settings-btn">Save</button>
+      </div>
+      <!------------ end of settings section ------------->
 
     </div>
 
