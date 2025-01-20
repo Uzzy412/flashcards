@@ -45,9 +45,11 @@ const spanBackData = document.querySelector(".span-back-data");
 const nextBtn = document.querySelector(".next-btn");
 const backBtn = document.querySelector(".back-btn");
 const showAnswerBtn = document.querySelector(".show-answer-btn");
-const flashcardsLength = document.querySelector(".flashcards-lengh");
+const flashcardsLength = document.querySelector(".flashcards-length");
+const reviewsLength = document.querySelector(".reviews-length");
 
 // ------------settings----------- //
+const settingsSection = document.querySelector(".settings-section");
 const inputForNew = document.querySelector("#new");
 const selectForNew = document.querySelector("#order-for-new");
 const inputForReview = document.querySelector("#review");
@@ -82,7 +84,6 @@ let profilesAndData = [
 ];
 
 
-
 // --------------- INITIALIZE DATA BASE ----------------- //
 
 let db;
@@ -102,6 +103,7 @@ request.onsuccess = function() {
   console.log("Database is open.");
   showProfiles();
 }
+
 
 
 // --------------------- FEATURES ---------------------- //
@@ -190,14 +192,18 @@ function profileAutoselect() {
       console.log("This profile doesn't have any data saved.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
+      folderText.innerText = "\nYou don't have a folder. Please create one before adding any data.";
       rightSection.style.display = "none";
       deleteFolderBtn.style.display = "none";
+      settingsSection.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "Your folders\n\n";
+      folderText.innerText = "Your folders";
+      settingsSection.style.display = "block";
+      rightSection.style.display = "block";
+      autoFolderSettings();
     }
   };
   search.onerror = function() {console.log("error")};
@@ -224,14 +230,18 @@ function selectProfile(e) {
       console.log("This profile doesn't have any data saved.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "\n\nYou don't have a folder. Please create one before adding any data.";
+      folderText.innerText = "\nYou don't have a folder. Please create one before adding any data.";
       rightSection.style.display = "none";
       deleteFolderBtn.style.display = "none";
+      settingsSection.style.display = "none";
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
       folderText.innerText = "Your folders";
+      rightSection.style.display = "block";
+      settingsSection.style.display = "block";
+      autoFolderSettings();
     }
   };
   search.onerror = function() {console.log("error")};
@@ -314,7 +324,9 @@ function addFolder(name) {
     profilesAndData.data.push({ 
       folderName: name, data: [], reviews: [], settings: {
       new: 5, newOrder: "from old to new",
-      review: 5, reviewOrder: "from old to new"} 
+      review: 5, reviewOrder: "from old to new"},
+      flashcardsLearned: 0,
+      flashcardsReviewed: 0, 
     });
     profilesAndData.data.push({ 
       folderName: `${name} copy`, data: [], reviews: [], settings: {
@@ -751,7 +763,6 @@ function studyMenu() {
   search.onsuccess = function() {
     foldersArrayCopy = search.result;
 
-    rightSection.style.display = "block";
     toLearnWrapper.innerHTML = foldersArrayCopy.data.map((folder) => {
       if (folder.data.length === 0 && folder.folderName.match(/copy/)) {
         const arr = [...folder.folderName];
@@ -822,6 +833,7 @@ function study() {
 
   search.onsuccess = function () {
     foldersArray = search.result;
+    foldersArrayCopy = structuredClone(foldersArray);
 
     modal.style.display = "block";
     showAnswerBtn.disabled = false;
@@ -829,37 +841,38 @@ function study() {
     nextBtn.disabled = true;
     spanBackData.innerText = '';
     
-    const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
     const i = foldersArray.data.map(folder => folder.folderName).indexOf(currentFolder);
-    foldersArrayCopy = structuredClone(foldersArray);
+    const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+    
     foldersArrayCopy.data[index].data = [];
+  
 
-    if (foldersArray.data[i].data.length < foldersArrayCopy.data[index].settings.new) {
+    if (foldersArray.data[i].data.length < foldersArrayCopy.data[i].settings.new) {
       for (let j = 0; j < foldersArray.data[i].data.length; j++) {
         if (foldersArray.data[i].data[j].old) {
           continue;
+        } else {
+          foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
         }
-        foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
       }
       console.log("a");
       arrayToShow.push(...foldersArrayCopy.data[index].data);
     } else {
-      for (let j = 0; j < foldersArrayCopy.data[index].settings.new; j++) {
+      for (let j = 0; j < foldersArrayCopy.data[i].settings.new; j++) {
         if (foldersArrayCopy.data[i].data[j].old) {
           continue;
+        } else {
+          foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
         }
-        foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
       }
       console.log("b", foldersArrayCopy.data[index]);
       console.log("b", foldersArray.data[i]);
       arrayToShow.push(...foldersArrayCopy.data[index].data);
     }
-    
-    console.log('Array length', arrayToShow.length);
-    console.log('Array content', arrayToShow);
+
     spanFrontData.innerText = arrayToShow[currentIndex].front;
-    console.log(foldersArrayCopy.data[index].data.length);
     flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
+    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
   }
 }
 
@@ -888,8 +901,12 @@ function showFlashcardAnswer() {
       nextBtn.disabled = false;
     }
 
-    // mark flashcard as old...
+    // mark flashcard as old and send it to review...
     foldersArrayCopy.data[i].data[currentIndex].old = "old";
+    foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
+    foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
+    foldersArrayCopy.data[i].flashcardsLearned++;
+    
 
     // delete flashcard from session...
     foldersArrayCopy.data[index].data.splice(0, 1);
@@ -902,8 +919,9 @@ function showFlashcardAnswer() {
     }
     const addition = store.add(foldersArrayCopy);
     
-    studyMenu(db);
+    studyMenu();
     flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
+    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
     if (currentIndex <= 0) {
       backBtn.disabled = true;
     }
@@ -935,7 +953,10 @@ function nextFlashcard() {
   let search = index.get(profile);
 
   search.onsuccess = function() {
+    const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
+    const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
     foldersArrayCopy = search.result; 
+    
     showAnswerBtn.disabled = false;
     nextBtn.disabled = true;
     currentIndex++;
@@ -945,10 +966,14 @@ function nextFlashcard() {
     if (currentIndex >= arrayToShow.length - 1) {
       currentIndex = arrayToShow.length - 1;
       nextBtn.disabled = true;
-      // mark flashcard as old...
-      const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
+      // mark flashcard as old and send it to review...
       foldersArrayCopy.data[i].data[currentIndex].old = "old";
+      foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
+      foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[index].data[currentIndex]);
+      foldersArrayCopy.data[i].flashcardsLearned++;
     }
+
+    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
   }
 }
 function newNextFlashcard() {
@@ -1022,63 +1047,124 @@ function settings() {
 
   search.onsuccess = function() {
     foldersArray = search.result;
-
     neuCount = inputForNew.value;
     folderSettings = whichFolder.value;
     console.log(folderSettings);
 
     foldersArrayCopy = structuredClone(foldersArray);
     let index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(folderSettings);
-    let folderIndex = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${folderSettings} copy`);
-    foldersArrayCopy.data[folderIndex].data = [];
+    let indexCopy = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${folderSettings} copy`);
+    foldersArrayCopy.data[indexCopy].data = [];
 
-    if (neuCount > foldersArrayCopy.data[index].data.length) {
+    let reviews = [];
+
+    // ---------------------- Case A ---------------------- //
+    if (neuCount < foldersArrayCopy.data[index].data.length) {
       for (let i = 0; i < foldersArrayCopy.data[index].data.length; i++) {
-        if (foldersArray.data[index].data[i].old) {
+        if (foldersArrayCopy.data[index].data[i].old) {
           continue;
         } else {
-          foldersArrayCopy.data[folderIndex].data.push(foldersArray.data[folderIndex].data[i]);
+          reviews.push(foldersArrayCopy.data[index].data[i]);
         }
       }
-      foldersArrayCopy.data[index].settings.new = neuCount;
-      foldersArrayCopy.data[folderIndex].settings.new = neuCount;
+      
+      if (neuCount > foldersArrayCopy.data[index].flashcardsLearned) {
+        for (let i = 0; i < neuCount - foldersArrayCopy.data[index].flashcardsLearned; i++) {
+          foldersArrayCopy.data[indexCopy].data.push(reviews[i]);
+          if (foldersArrayCopy.data[indexCopy].data.length > reviews.length) {
+            foldersArrayCopy.data[indexCopy].data.pop();
+          }  
+        }
+        foldersArrayCopy.data[index].settings.new = neuCount;
+        foldersArrayCopy.data[indexCopy].settings.new = neuCount;
+        inputForNew.value = neuCount;
+      } else {
+        foldersArrayCopy.data[index].settings.new = neuCount;
+        foldersArrayCopy.data[indexCopy].settings.new = neuCount;
+        inputForNew.value = neuCount;
+      }
+
+      const tr2 = db.transaction("profiles", "readwrite");
+      const store = tr2.objectStore("profiles");
+      const indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        const deleted = store.delete(deletion.result);
+      };
+      store.add(foldersArrayCopy);
+
       studyMenu();
-      console.log("a");
+      console.log("Settings saved");
+      console.log("case A");
     }
 
-    if (neuCount > foldersArrayCopy.data[folderIndex].data.length &&
-      neuCount < foldersArrayCopy.data[index].data.length) {
-      for (let i = 0; i < neuCount; i++) {
-        if (foldersArray.data[index].data[i].old) {
+    // ----------------------- Case B ---------------------- //
+    if (neuCount >= foldersArrayCopy.data[index].data.length) {
+      for (let i = 0; i < foldersArrayCopy.data[index].data.length; i++) {
+        if (foldersArrayCopy.data[index].data[i].old) {
           continue;
         } else {
-          foldersArrayCopy.data[folderIndex].data.push(foldersArray.data[folderIndex].data[i]);
+          reviews.push(foldersArrayCopy.data[index].data[i]);
         }
       }
+      
+      for (let i = 0;
+        i < foldersArrayCopy.data[index].data.length - foldersArrayCopy.data[index].flashcardsLearned;
+        i++) {
+        foldersArrayCopy.data[indexCopy].data.push(reviews[i]);
+        if (foldersArrayCopy.data[indexCopy].data.length > reviews.length) {
+          foldersArrayCopy.data[indexCopy].data.pop();
+        }  
+      }
       foldersArrayCopy.data[index].settings.new = neuCount;
-      foldersArrayCopy.data[folderIndex].settings.new = neuCount;
+      foldersArrayCopy.data[indexCopy].settings.new = neuCount;
+      inputForNew.value = neuCount;
+      
+      const tr2 = db.transaction("profiles", "readwrite");
+      const store = tr2.objectStore("profiles");
+      const indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        const deleted = store.delete(deletion.result);
+      };
+      store.add(foldersArrayCopy);    
+      
       studyMenu();
-      console.log("b");
-    }  
-
-    if (foldersArrayCopy.data[index].data.length === 0) {
-      foldersArrayCopy.data[index].settings.new = neuCount;
-      foldersArrayCopy.data[folderIndex].settings.new = neuCount;
-      console.log("c");
+      console.log("Settings saved");
+      console.log("case B");
     }
-
-    const tr2 = db.transaction("profiles", "readwrite");
-    const store = tr2.objectStore("profiles");
-    const indexDelete = store.index("by_name");
-    const deletion = indexDelete.getKey(profile);
-    deletion.onsuccess = function() {
-      const deleted = store.delete(deletion.result);
-      console.log('deleted');
-    };
-    store.add(foldersArrayCopy);    
-    console.log("Settings saved");
   }
 }
+
+function autoFolderSettings() {
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    let index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(whichFolder.value);
+    inputForNew.value = foldersArray.data[index].settings.new;
+  }  
+}
+whichFolder.addEventListener("change", selectFolderSettings);
+function selectFolderSettings(e) {
+  folderSettings = e.target.value;
+  db = request.result;
+  let tr = db.transaction("profiles");
+  let store = tr.objectStore("profiles");
+  let index = store.index("by_name");
+  let search = index.get(profile);
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    let index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(folderSettings);
+    inputForNew.value = foldersArray.data[index].settings.new;
+  }  
+}
+
 
 
 

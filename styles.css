@@ -11,7 +11,7 @@
   position: relative;
   width: 90%;
   margin-inline: auto;
-  border: 2px solid grey;
+  /* border: 2px solid grey; */
   display: flex;
 }
 /*----------------------------------------*/
@@ -185,11 +185,21 @@
   }
 
   .flashcards-length {
+    color:aqua;
     font-weight: bold;
     font-size: 20px;
     position: absolute;
     top: 70px;
-    left: 245px;
+    left: 225px;
+  }
+
+  .reviews-length {
+    color:rgb(255, 11, 11);
+    font-weight: bold;
+    font-size: 20px;
+    position: absolute;
+    top: 70px;
+    left: 270px;
   }
 
   .span-front-data {
@@ -224,7 +234,7 @@
     left: 70px;
   }
 
-  .close-modal {
+  .close-modal-button {
     color: grey;
     font-size: 40px;
     float: right;
@@ -246,6 +256,7 @@
 .settings-section {
   border: 2px solid black;
   width: 400px;
+  display: none;
 }
 
   .settings-text {
