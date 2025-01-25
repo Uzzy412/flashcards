@@ -65,6 +65,7 @@ let currentFolder;
 let currentFlashcard;
 let currentIndex = 0;
 let currentClass;
+let dayPassed;
 let neuCount = 5;
 let reviewCount = 5;
 let orderForNew;
@@ -102,12 +103,171 @@ request.onsuccess = function() {
   db = request.result;
   console.log("Database is open.");
   showProfiles();
+  checkTime();
 }
 
 
 
 // --------------------- FEATURES ---------------------- //
 
+function checkTime() {
+  db = request.result;
+  const tr = db.transaction("profiles", "readwrite");
+  const store = tr.objectStore("profiles");
+  const search = store.getAll();
+
+  search.onsuccess = function() {
+    foldersArray = search.result;
+    const yesterday = new Date("2025-01-22");
+    yesterday.setHours(0, 0, 0, 0);
+    const yesterdayMs = yesterday.getTime();
+
+    foldersArray.push(yesterdayMs);
+    // in case there is a second access time, delete it...
+    for (let i = 1; i < foldersArray.length; i++) {
+      if (typeof foldersArray[i] === "number") {
+        foldersArray.splice(i, 1);
+      }
+    }
+
+    const tr4 = db.transaction("profiles", "readwrite");
+    const store4 = tr4.objectStore("profiles");
+    const deletion = store4.clear();
+    for (let i = 0; i < foldersArray.length; i++) {
+      const addition = store4.add(foldersArray[i]);
+    }
+
+    const today = new Date("2025-01-23");
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const elapsedMs = todayMs - foldersArray[0];
+    const elapsedHours = Math.floor(elapsedMs / 1000 / 60 / 60);
+    console.log("Elapsed hours:", elapsedHours);
+
+    function hasOneDayPassed() {
+      if (elapsedHours === 24) {
+        foldersArray.shift();
+        foldersArray.unshift(yesterdayMs);
+        console.log("A day just passed.");
+        return true;
+      } else {
+        console.log("The day didn't pass yet.");
+        return false;
+      }
+    }
+
+    runOnce();
+    function runOnce() {
+      if (hasOneDayPassed()) {
+        console.log("Reseting learned flashcards because one day passed.");
+        foldersArray.forEach((profile) => {
+          profile.data?.forEach((folder) => {
+            folder.flashcardsLearned = 0;
+          });
+        });
+
+        console.log("Add new flashcards");
+        const tr4 = db.transaction("profiles", "readwrite");
+        const store4 = tr4.objectStore("profiles");
+        const deletion = store4.clear();
+        for (let i = 0; i < foldersArray.length; i++) {
+          const addition = store4.add(foldersArray[i]);
+        }
+        addFlashcardsDaily();
+        dayPassed = true;
+        return true;
+
+      } else {
+        console.log("Waiting for one day to pass before reseting.");
+        dayPassed = false;
+        return false;
+      }
+    }
+
+  }
+}
+
+
+
+function addFlashcardsDaily() {
+  db = request.result;
+  const tr = db.transaction("profiles", "readwrite");
+  const store = tr.objectStore("profiles");
+  const search = store.getAll();
+  search.onsuccess = function() {
+    foldersArray = search.result;
+
+    foldersArray.forEach((profile) => {
+      if (typeof profile === "object") {
+        profile.data?.forEach((folder) => {
+          if (folder.folderName.match(/copy/)) {
+            folder.data = [];
+          }
+        });
+      }
+    });
+
+    foldersArray.forEach((profile) => {
+      for (let i = 0; i < profile.data?.length; i++) {
+        console.log(i);
+        if (profile.data[i].folderName.match(/copy/)) {
+          console.log("This is copy");
+          if (profile.data[i - 1].data.length >= profile.data[i - 1].settings.new) {
+            const onlyNewFlashcards = [];
+            console.log("This is case A");
+            for (let j = 0; j < profile.data[i - 1].data.length; j++) {
+              if (profile.data[i - 1].data[j].old) {
+                continue;
+              } else {
+                onlyNewFlashcards.push(profile.data[i - 1].data[j]);
+              }
+            }
+            for (let k = 0; k < profile.data[i - 1].settings.new; k++) {
+              if (!onlyNewFlashcards[k]) {
+                continue;
+              } else {
+                profile.data[i].data.push(onlyNewFlashcards[k]); 
+              } 
+            }  
+          }
+
+          else {
+            const onlyNewFlashcards = [];
+            console.log("This is Case B");
+            for (let j = 0; j < profile.data[i - 1].data.length; j++) {
+              if (profile.data[i - 1].data[j].old) {
+                continue;
+              } else {
+                onlyNewFlashcards.push(profile.data[i - 1].data[j]);
+              }
+            }
+            for (let k = 0; k < profile.data[i - 1].settings.new; k++) {
+              if (!onlyNewFlashcards[k]) {
+                continue;
+              } else {
+                profile.data[i].data.push(onlyNewFlashcards[k]);
+              }
+            }
+          }
+
+        } else {console.log("This is original")}
+      }
+    });
+
+    const tr4 = db.transaction("profiles", "readwrite");
+    const store4 = tr4.objectStore("profiles");
+    const deletion = store4.clear();
+    for (let i = 0; i < foldersArray.length; i++) {
+      const addition = store4.add(foldersArray[i]);
+    }
+  }  
+}
+
+
+
+createProfileBtn.addEventListener("click", function() {
+  createProfile(profileNameInput.value);
+});
 function createProfile(name) {
   profile = name;
   db = request.result;
@@ -132,9 +292,6 @@ function createProfile(name) {
   foldersDataList.style.display = "none";
   openedFolder.style.display = "none";
 }
-createProfileBtn.addEventListener("click", function() {
-  createProfile(profileNameInput.value);
-});
 
 
 
@@ -159,10 +316,14 @@ function showProfiles(value) {
         select.innerHTML = result2.result.map(profile => {
           if (profile instanceof Object) {
             return `<option id="${profile.profileName}" value="${profile.profileName}">${profile.profileName}</option>`;
-          }  
+          }
+          if (profile instanceof Number) {
+            return;
+          }
         });
         select.value = value;
-      }
+      };
+
     } else {
       profileText.innerText = "\n\nThere is no profile";
       console.log("There is no profile. Please create one.");
@@ -173,7 +334,7 @@ function showProfiles(value) {
       addFolderBtn.style.display = "none";
     }
   };
-  search.onerror = function() {console.log("Error searching");};
+  search.onerror = function() {console.log("Error searching")};
 }
 
 
@@ -196,11 +357,12 @@ function profileAutoselect() {
       rightSection.style.display = "none";
       deleteFolderBtn.style.display = "none";
       settingsSection.style.display = "none";
+
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "Your folders";
+      folderText.innerText = "\nYour folders\n";
       settingsSection.style.display = "block";
       rightSection.style.display = "block";
       autoFolderSettings();
@@ -208,10 +370,12 @@ function profileAutoselect() {
   };
   search.onerror = function() {console.log("error")};
   studyMenu();
+  flashcardsTotal.style.display = "none";
 }
 
 
 
+select.addEventListener("change", selectProfile);
 function selectProfile(e) {
   db = request.result;
   const tr = db.transaction("profiles", "readwrite");
@@ -225,8 +389,10 @@ function selectProfile(e) {
   const search = index.get(profile);
 
   search.onsuccess = function() {
-    console.log(search.result);
-    if (search.result.data.length === 0) {
+    foldersArray = search.result;
+    console.log(foldersArray);
+
+    if (foldersArray.data.length === 0) {
       console.log("This profile doesn't have any data saved.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
@@ -234,11 +400,12 @@ function selectProfile(e) {
       rightSection.style.display = "none";
       deleteFolderBtn.style.display = "none";
       settingsSection.style.display = "none";
+
     } else {
       console.log("There is data.");
       folderNameInput.style.display = "inline-block";
       addFolderBtn.style.display = "inline-block";
-      folderText.innerText = "Your folders";
+      folderText.innerText = "\nYour folders\n";
       rightSection.style.display = "block";
       settingsSection.style.display = "block";
       autoFolderSettings();
@@ -251,15 +418,14 @@ function selectProfile(e) {
   backTextarea.style.display = "none";
   showDataBtn.style.display = "none";
   createDataBtn.style.display = "none";
+  flashcardsTotal.style.display = "none";
+ 
   foldersDataList.style.display = "none";
   dataMessage.innerText = '';
   openedFolder.innerText = '';
-}
-select.addEventListener("change", function(e) {
-  selectProfile(e);
   showFolders();
   studyMenu();
-});
+}
 
 
 
@@ -288,9 +454,11 @@ function deleteProfile() {
       };
 
       showProfiles();
+      flashcardsTotal.style.display = "none";
       select.style.display = "none";
       deleteProfileBtn.style.display = "none";
       folderNameInput.style.display = "none";
+      deleteFolderBtn.style.display = "none";
       addFolderBtn.style.display = "none";
 
       folderText.innerText = '';
@@ -298,6 +466,7 @@ function deleteProfile() {
       rightSection.style.display = "none";
       frontTextarea.style.display = "none";
       backTextarea.style.display = "none";
+      settingsSection.style.display = "none";
 
       createDataBtn.style.display = "none";
       showDataBtn.style.display = "none";
@@ -307,11 +476,14 @@ function deleteProfile() {
     } else {
       return;
     }  
-  }  
+  };  
 }
 
 
 
+addFolderBtn.addEventListener("click", function() {
+  addFolder(folderNameInput.value);
+});
 function addFolder(name) {
   db = request.result;
   let tr = db.transaction("profiles", "readwrite");
@@ -322,14 +494,14 @@ function addFolder(name) {
   search.onsuccess = function() {
     profilesAndData = search.result;
     profilesAndData.data.push({ 
-      folderName: name, data: [], reviews: [], settings: {
+      folderName: name, reset: true, data: [], reviews: [], settings: {
       new: 5, newOrder: "from old to new",
       review: 5, reviewOrder: "from old to new"},
       flashcardsLearned: 0,
       flashcardsReviewed: 0, 
     });
     profilesAndData.data.push({ 
-      folderName: `${name} copy`, data: [], reviews: [], settings: {
+      folderName: `${name} copy`, reset: true, data: [], reviews: [], settings: {
       new: 5, newOrder: "from old to new",
       review: 5, reviewOrder: "from old to new"} 
     });
@@ -347,15 +519,13 @@ function addFolder(name) {
     profilesAndData = [];
     currentFolder = name;
   };
-}
-addFolderBtn.addEventListener("click", function() {
-  addFolder(folderNameInput.value);
+
   showFolders();
   autoOpenFolders();
   profileAutoselect();
   studyMenu();
   folderNameInput.value = '';
-});
+}
 
 
 
@@ -383,11 +553,12 @@ function showFolders() {
         return `<option value="${folder.folderName}">${folder.folderName}</option>`;
       }
     }).join(" ");
-  }
+  };
 }
 
 
 
+folders.addEventListener("click", openFolders);
 function openFolders(e) {
   db = request.result;
   let tr = db.transaction("profiles");
@@ -424,11 +595,8 @@ function openFolders(e) {
       return;
     }
   };
-}
-folders.addEventListener("click", function(e) {
-  openFolders(e);
   foldersDataList.style.display = "none";
-});
+}
 
 
 
@@ -453,7 +621,7 @@ function autoOpenFolders() {
     frontTextarea.style.display = "block";
     backTextarea.style.display = "block";
     createDataBtn.style.display = "block";
-  }
+  };
 }
 
 
@@ -503,15 +671,17 @@ function deleteFolder() {
       openedFolder.innerText = "";
       flashcardsTotal.innerText = "";
       profilesAndData = [];
-      
     } else {
       return;
     }  
-  }  
+  };  
 }
 
 
 
+createDataBtn.addEventListener("click", function() {
+  createData(frontTextarea.value, backTextarea.value);
+});
 function createData(front, back) {
   db = request.result;
   let tr = db.transaction("profiles", "readwrite");
@@ -525,15 +695,25 @@ function createData(front, back) {
     const index2 = foldersArray.data.map(i => i.folderName).indexOf(`${currentFolder} copy`);
     let id = foldersArray.data[index].data.length;
     
-    if (foldersArray.data[index].data.length > foldersArray.data[index].settings.new) {
-      foldersArray.data[index].data.push({id: id, front: front, back: back});
-    } else {
-      foldersArray.data[index].data.push({id: id, front: front, back: back});
-      foldersArray.data[index2].data.push({id: id, front: front, back: back});
-    }
+    // if (foldersArray.data[index].data.length > foldersArray.data[index].settings.new) {
+    //   foldersArray.data[index].data.push({id: id, front: front, back: back});
+    // } else {
+    //   foldersArray.data[index].data.push({id: id, front: front, back: back});
+    //   foldersArray.data[index2].data.push({id: id, front: front, back: back});
+    // }
 
+    foldersArray.data[index].data.push({id: id, front: front, back: back});
+    foldersArray.data[index2].data.push({id: id, front: front, back: back});
     if (foldersArray.data[index2].data.length > foldersArray.data[index].settings.new) {
       foldersArray.data[index2].data.pop();
+    }
+
+    if (foldersArray.data[index2].data.length >
+    foldersArray.data[index].settings.new -
+    foldersArray.data[index].flashcardsLearned) {
+
+      foldersArray.data[index2].data.pop();
+
     }
     
     const indexDelete = store.index("by_name");
@@ -545,20 +725,19 @@ function createData(front, back) {
     const create = store.add(foldersArray);
     create.onsuccess = () => console.log("New data on folder", currentFolder, "on profile", profile);
     create.onerror = () => console.log("Error");
-  }
-}
-createDataBtn.addEventListener("click", function(db) {
-  createData(frontTextarea.value, backTextarea.value);
-  showDataBtn.style.display = "block";
+  };
+
   showData();
   studyMenu();
+  showDataBtn.style.display = "block";
   frontTextarea.value = '';
   backTextarea.value = '';
   dataMessage.innerText = '';
-});
+}
 
 
 
+showDataBtn.addEventListener("click", showData);
 function showData() {
   db = request.result;
   let tr = db.transaction("profiles");
@@ -602,11 +781,8 @@ function showData() {
         }
       });
     });
-  }    
+  };   
 }
-showDataBtn.addEventListener("click", function() {
-  showData();
-});
 showDataBtn.addEventListener("click", () => {
   if (foldersDataList.style.display === "block" ) {
     foldersDataList.style.display = "none";
@@ -843,33 +1019,109 @@ function study() {
     
     const i = foldersArray.data.map(folder => folder.folderName).indexOf(currentFolder);
     const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
-    
     foldersArrayCopy.data[index].data = [];
-  
 
-    if (foldersArray.data[i].data.length < foldersArrayCopy.data[i].settings.new) {
-      for (let j = 0; j < foldersArray.data[i].data.length; j++) {
-        if (foldersArray.data[i].data[j].old) {
-          continue;
-        } else {
-          foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
+    console.log(foldersArray.data[index]);
+
+    // ---------------- Case A ----------------- //
+    if (!dayPassed) {
+      if (foldersArray.data[i].data.length < foldersArrayCopy.data[i].settings.new) {
+        for (let j = 0; j < foldersArray.data[i].data.length; j++) {
+          if (foldersArray.data[i].data[j].old) {
+            continue;
+          } else {
+            foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
+          }
+        }
+        console.log("Case A - first condition");
+        arrayToShow.push(...foldersArrayCopy.data[index].data);
+      } 
+      
+      else {
+        if (foldersArrayCopy.data[i].settings.new > foldersArrayCopy.data[i].flashcardsLearned) {
+          for (let j = 0; 
+            j < foldersArrayCopy.data[i].settings.new;
+            j++) {
+            if (foldersArrayCopy.data[i].data[j].old) {
+              continue;
+            } else {
+              foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
+            }
+          }
+          console.log("Case A - second condition");
+          arrayToShow.push(...foldersArrayCopy.data[index].data);
         }
       }
-      console.log("a");
-      arrayToShow.push(...foldersArrayCopy.data[index].data);
-    } else {
-      for (let j = 0; j < foldersArrayCopy.data[i].settings.new; j++) {
-        if (foldersArrayCopy.data[i].data[j].old) {
-          continue;
-        } else {
-          foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
-        }
-      }
-      console.log("b", foldersArrayCopy.data[index]);
-      console.log("b", foldersArray.data[i]);
-      arrayToShow.push(...foldersArrayCopy.data[index].data);
     }
 
+    // ---------------- Case B ----------------- // 
+    // if it is a new day, add new flashcards...
+    if (dayPassed) {
+      console.log("Case B - Let s study, checktime is true", dayPassed);
+      if (foldersArray.data[i].data.length < foldersArrayCopy.data[i].settings.new) {
+        for (let j = 0; j < foldersArray.data[i].data.length; j++) {
+          if (foldersArray.data[i].data[j].old) {
+            continue;
+          } else {
+            foldersArrayCopy.data[index].data.push(foldersArray.data[i].data[j]);
+          }
+        }
+        console.log("Case B - first condition");
+        arrayToShow.push(...foldersArrayCopy.data[index].data);
+
+        const tr2 = db.transaction("profiles", "readwrite");
+        const store = tr2.objectStore("profiles");
+        const indexDelete = store.index("by_name");
+        const deletion = indexDelete.getKey(profile);
+        deletion.onsuccess = function() {
+          const deleted = store.delete(deletion.result);
+          console.log("deleted");
+        };
+        const addition = store.add(foldersArrayCopy);
+        studyMenu();
+
+      } else {
+        let onlyNewFlashcards = [];
+        for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+          if (foldersArrayCopy.data[i].data[j].old) {
+            continue;
+          } else {
+            onlyNewFlashcards.push(foldersArray.data[i].data[j]);
+          }
+        }
+
+        if (onlyNewFlashcards.length < foldersArrayCopy.data[i].settings.new) {
+          for (let k = 0; k < onlyNewFlashcards.length; k++) {
+            foldersArrayCopy.data[index].data.push(onlyNewFlashcards[k]);
+          }
+        } else {
+          if (foldersArrayCopy.data[i].settings.new > foldersArrayCopy.data[i].flashcardsLearned) {
+            for (let k = 0; k < foldersArrayCopy.data[i].settings.new - foldersArrayCopy.data[i].flashcardsLearned; k++) {
+              foldersArrayCopy.data[index].data.push(onlyNewFlashcards[k]);
+            }
+          }  
+        }
+
+        console.log("Case B - second condition");
+        arrayToShow.push(...foldersArrayCopy.data[index].data);
+
+        const tr2 = db.transaction("profiles", "readwrite");
+        const store = tr2.objectStore("profiles");
+        const indexDelete = store.index("by_name");
+        const deletion = indexDelete.getKey(profile);
+        deletion.onsuccess = function() {
+          const deleted = store.delete(deletion.result);
+          console.log("deleted");
+        };
+        const addition = store.add(foldersArrayCopy);
+        studyMenu();
+      }
+      
+    } else {
+      console.log("Case A - We cannot study, checktime is false", dayPassed);
+    }
+
+    console.log(arrayToShow);
     spanFrontData.innerText = arrayToShow[currentIndex].front;
     flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
     reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
@@ -902,12 +1154,19 @@ function showFlashcardAnswer() {
     }
 
     // mark flashcard as old and send it to review...
-    foldersArrayCopy.data[i].data[currentIndex].old = "old";
-    foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
-    foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
+    for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+      if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
+        foldersArrayCopy.data[i].data[j].old = "old";
+      } 
+    }  
+    for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+      if (!foldersArrayCopy.data[i].reviews.includes(arrayToShow[currentIndex])) {
+        foldersArrayCopy.data[i].reviews.push(arrayToShow[currentIndex]);
+        foldersArrayCopy.data[index].reviews.push(arrayToShow[currentIndex]);
+      }
+    }  
     foldersArrayCopy.data[i].flashcardsLearned++;
     
-
     // delete flashcard from session...
     foldersArrayCopy.data[index].data.splice(0, 1);
     let tr = db.transaction("profiles", "readwrite");
@@ -967,10 +1226,24 @@ function nextFlashcard() {
       currentIndex = arrayToShow.length - 1;
       nextBtn.disabled = true;
       // mark flashcard as old and send it to review...
-      foldersArrayCopy.data[i].data[currentIndex].old = "old";
-      foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
-      foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[index].data[currentIndex]);
-      foldersArrayCopy.data[i].flashcardsLearned++;
+
+    
+      // for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+      //   if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
+      //     foldersArrayCopy.data[i].data[j].old = "old";
+      //   } else {
+      //     return;
+      //   }
+      // }
+
+      // if (!foldersArrayCopy.data[index].data[currentIndex].old) {
+      //   foldersArrayCopy.data[i].data[currentIndex].old = "old";
+      //   foldersArrayCopy.data[index].data[currentIndex].old = "old";
+      // }
+
+      // foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
+      // foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[index].data[currentIndex]);
+      // foldersArrayCopy.data[i].flashcardsLearned++;
     }
 
     reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
@@ -1036,7 +1309,9 @@ closeModalButton.addEventListener("click", () => {
 // ----------------------study features end-------------------------- //
 
 
-// settings...
+
+// ----------------------- SETTINGS FEATURES ------------------------- //
+
 saveSettingsBtn.addEventListener("click", settings);
 function settings() {
   db = request.result;
@@ -1135,6 +1410,7 @@ function settings() {
     }
   }
 }
+
 
 function autoFolderSettings() {
   db = request.result;
