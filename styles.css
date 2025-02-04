@@ -216,6 +216,12 @@
     margin-top: 50px;
   }
 
+  .reviews-spacing {
+    display: none;
+    justify-content: space-around;
+    margin-top: 5em;
+  }
+
   .show-answer-btn {
     position: absolute;
     top: 450px;

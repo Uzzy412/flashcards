@@ -42,6 +42,7 @@ const modalContent = document.querySelector(".modal-content");
 const closeModalButton = document.querySelector(".close-modal-button");
 const spanFrontData = document.querySelector(".span-front-data");
 const spanBackData = document.querySelector(".span-back-data");
+const reviewsSpacing = document.querySelector(".reviews-spacing");
 const nextBtn = document.querySelector(".next-btn");
 const backBtn = document.querySelector(".back-btn");
 const showAnswerBtn = document.querySelector(".show-answer-btn");
@@ -129,7 +130,6 @@ function checkTime() {
         foldersArray.splice(i, 1);
       }
     }
-
     const tr4 = db.transaction("profiles", "readwrite");
     const store4 = tr4.objectStore("profiles");
     const deletion = store4.clear();
@@ -137,15 +137,15 @@ function checkTime() {
       const addition = store4.add(foldersArray[i]);
     }
 
-    const today = new Date("2025-01-23");
-    today.setHours(0, 0, 0, 0);
+    const today = new Date("2025-01-26");
+    today.setHours(10, 0, 0, 0);
     const todayMs = today.getTime();
     const elapsedMs = todayMs - foldersArray[0];
     const elapsedHours = Math.floor(elapsedMs / 1000 / 60 / 60);
     console.log("Elapsed hours:", elapsedHours);
 
     function hasOneDayPassed() {
-      if (elapsedHours === 24) {
+      if (elapsedHours >= 24) {
         foldersArray.shift();
         foldersArray.unshift(yesterdayMs);
         console.log("A day just passed.");
@@ -173,7 +173,8 @@ function checkTime() {
         for (let i = 0; i < foldersArray.length; i++) {
           const addition = store4.add(foldersArray[i]);
         }
-        addFlashcardsDaily();
+
+        addFlashAndReviews();
         dayPassed = true;
         return true;
 
@@ -183,13 +184,23 @@ function checkTime() {
         return false;
       }
     }
-
-  }
+  };
 }
 
 
+// function clearAdd() {
+//   console.log("Delete everything and add back");
+//   db = request.result;
+//   const tr = db.transaction("profiles", "readwrite");
+//   const store = tr.objectStore("profiles");
+//   store.clear();
+//   for (let j = 0; j < foldersArray.length; j++) {
+//     store.add(foldersArray[j]);
+//   } 
+// }
 
-function addFlashcardsDaily() {
+
+function addFlashAndReviews() {
   db = request.result;
   const tr = db.transaction("profiles", "readwrite");
   const store = tr.objectStore("profiles");
@@ -209,9 +220,9 @@ function addFlashcardsDaily() {
 
     foldersArray.forEach((profile) => {
       for (let i = 0; i < profile.data?.length; i++) {
-        console.log(i);
         if (profile.data[i].folderName.match(/copy/)) {
-          console.log("This is copy");
+
+          // add flashcards daily...
           if (profile.data[i - 1].data.length >= profile.data[i - 1].settings.new) {
             const onlyNewFlashcards = [];
             console.log("This is case A");
@@ -222,13 +233,15 @@ function addFlashcardsDaily() {
                 onlyNewFlashcards.push(profile.data[i - 1].data[j]);
               }
             }
+            
             for (let k = 0; k < profile.data[i - 1].settings.new; k++) {
               if (!onlyNewFlashcards[k]) {
                 continue;
               } else {
-                profile.data[i].data.push(onlyNewFlashcards[k]); 
+                profile.data[i].data.push(onlyNewFlashcards[k]);
+                console.log("You got some new flashcards");
               } 
-            }  
+            }
           }
 
           else {
@@ -241,26 +254,48 @@ function addFlashcardsDaily() {
                 onlyNewFlashcards.push(profile.data[i - 1].data[j]);
               }
             }
+
             for (let k = 0; k < profile.data[i - 1].settings.new; k++) {
               if (!onlyNewFlashcards[k]) {
                 continue;
               } else {
                 profile.data[i].data.push(onlyNewFlashcards[k]);
+                console.log("You got some new flashcards");
               }
             }
           }
 
-        } else {console.log("This is original")}
+          // add reviews if any...
+          for (let j = 0; j < profile.data[i].reviews?.length; j++) {
+            let msToElapse = profile.data[i].reviews[j].get - profile.data[i].reviews[j].sent;
+            let hoursToElapse = Math.floor(msToElapse / 1000 / 60 / 60);
+            let sending = profile.data[i].reviews[j].sent;
+            let elapsedMs = Date.now() - sending;
+            let elapsedHours = Math.floor(elapsedMs / 1000 / 60 / 60) + 120;
+            console.log("Passed time:", elapsedHours, "Minimum time to pass:", hoursToElapse);
+
+            if (elapsedHours >= hoursToElapse) {
+              console.log("You got some reviews for today");
+              if (!profile.data[i].sessionReviews.includes(profile.data[i].reviews[j])) {
+                profile.data[i].sessionReviews.push(profile.data[i].reviews[j]);
+              } else {
+                continue;
+              }
+            } else {
+              console.log('Wait more to get reviews');
+            }
+          }
+        }
       }
     });
 
-    const tr4 = db.transaction("profiles", "readwrite");
-    const store4 = tr4.objectStore("profiles");
-    const deletion = store4.clear();
+    const tr = db.transaction("profiles", "readwrite");
+    const store = tr.objectStore("profiles");
+    store.clear();
     for (let i = 0; i < foldersArray.length; i++) {
-      const addition = store4.add(foldersArray[i]);
+      store.add(foldersArray[i]);
     }
-  }  
+  };
 }
 
 
@@ -274,10 +309,15 @@ function createProfile(name) {
   const tr = db.transaction("profiles", "readwrite");
   const store = tr.objectStore("profiles");
 
+  if (profileNameInput.value === '') {
+    profileNameInput.focus();
+    alert("Please add a name for your profile");
+    return;
+  }
+
   profilesAndData.unshift( {profileName: name, data: []} );
   store.add(profilesAndData[0]);
   console.log(`${profileNameInput.value} profile was created!`);
-  console.log(db.objectStoreNames.length);
 
   showProfiles(name);
   profileAutoselect();
@@ -483,6 +523,7 @@ function deleteProfile() {
 
 addFolderBtn.addEventListener("click", function() {
   addFolder(folderNameInput.value);
+  folderNameInput.value = '';
 });
 function addFolder(name) {
   db = request.result;
@@ -491,17 +532,23 @@ function addFolder(name) {
   let index = store.index("by_name");
   let search = index.get(profile);
 
+  if (folderNameInput.value === '') {
+    folderNameInput.focus();
+    alert("Please add a name for your folder");
+    return;
+  }
+
   search.onsuccess = function() {
     profilesAndData = search.result;
     profilesAndData.data.push({ 
-      folderName: name, reset: true, data: [], reviews: [], settings: {
+      folderName: name, reset: true, data: [], reviews: [], sessionReviews: [], settings: {
       new: 5, newOrder: "from old to new",
       review: 5, reviewOrder: "from old to new"},
       flashcardsLearned: 0,
       flashcardsReviewed: 0, 
     });
     profilesAndData.data.push({ 
-      folderName: `${name} copy`, reset: true, data: [], reviews: [], settings: {
+      folderName: `${name} copy`, reset: true, data: [], reviews: [], sessionReviews: [], settings: {
       new: 5, newOrder: "from old to new",
       review: 5, reviewOrder: "from old to new"} 
     });
@@ -524,7 +571,6 @@ function addFolder(name) {
   autoOpenFolders();
   profileAutoselect();
   studyMenu();
-  folderNameInput.value = '';
 }
 
 
@@ -542,7 +588,7 @@ function showFolders() {
       if (folder.folderName.match(/copy/)) {
         return;
       } else {
-        return `<button class="folder-buttons">${folder.folderName}</button>`;
+        return `<button class="folder-buttons ${folder.folderName}">${folder.folderName}</button>`;
       }
     }).join(" ");
 
@@ -569,6 +615,15 @@ function openFolders(e) {
   search.onsuccess = function() {
     foldersArray = search.result;
     if (e.target.tagName === "BUTTON") {
+      
+      // e.target.disabled = true;
+      // const buttons = folders.querySelectorAll("button");
+      // buttons.forEach(button => {
+      //   if (e.target.disabled) {
+      //     button.disabled = false;
+      //   }
+      // });
+
       deleteFolderBtn.style.display = "inline-block";
       currentFolder = e.target.innerText;
       const index = foldersArray.data.map(i => i.folderName).indexOf(currentFolder);
@@ -681,6 +736,10 @@ function deleteFolder() {
 
 createDataBtn.addEventListener("click", function() {
   createData(frontTextarea.value, backTextarea.value);
+  frontTextarea.value = '';
+  backTextarea.value = '';
+  dataMessage.innerText = '';
+  showData();
 });
 function createData(front, back) {
   db = request.result;
@@ -688,6 +747,11 @@ function createData(front, back) {
   let store = tr.objectStore("profiles");
   let index = store.index("by_name");
   let search = index.get(profile);
+
+  if (frontTextarea.value === '' || backTextarea.value === '') {
+    alert("Please add values for your flashcards");
+    return;
+  }
 
   search.onsuccess = function() {
     foldersArray = search.result;
@@ -702,18 +766,19 @@ function createData(front, back) {
     //   foldersArray.data[index2].data.push({id: id, front: front, back: back});
     // }
 
-    foldersArray.data[index].data.push({id: id, front: front, back: back});
-    foldersArray.data[index2].data.push({id: id, front: front, back: back});
-    if (foldersArray.data[index2].data.length > foldersArray.data[index].settings.new) {
+    foldersArray.data[index].data.push({id: id, front: front, back: back,
+      interval: {easy: 3, medium: 2, difficult: 1}});
+    foldersArray.data[index2].data.push({id: id, front: front, back: back,
+      interval: {easy: 3, medium: 2, difficult: 1}});
+
+    if (foldersArray.data[index2].data.length >
+    foldersArray.data[index].settings.new) {
       foldersArray.data[index2].data.pop();
     }
-
     if (foldersArray.data[index2].data.length >
     foldersArray.data[index].settings.new -
     foldersArray.data[index].flashcardsLearned) {
-
       foldersArray.data[index2].data.pop();
-
     }
     
     const indexDelete = store.index("by_name");
@@ -726,13 +791,8 @@ function createData(front, back) {
     create.onsuccess = () => console.log("New data on folder", currentFolder, "on profile", profile);
     create.onerror = () => console.log("Error");
   };
-
-  showData();
   studyMenu();
   showDataBtn.style.display = "block";
-  frontTextarea.value = '';
-  backTextarea.value = '';
-  dataMessage.innerText = '';
 }
 
 
@@ -759,6 +819,7 @@ function showData() {
             </div>`;
       }).join("");
       flashcardsTotal.innerText = "Total of flashcards: " + search.result.data[index].data.length;
+
     } else {
       foldersDataList.innerHTML = '';
       dataMessage.innerText = "\nNo data in this folder";
@@ -783,6 +844,7 @@ function showData() {
     });
   };   
 }
+
 showDataBtn.addEventListener("click", () => {
   if (foldersDataList.style.display === "block" ) {
     foldersDataList.style.display = "none";
@@ -935,41 +997,41 @@ function studyMenu() {
   let store = tr.objectStore("profiles");
   let index = store.index("by_name");
   let search = index.get(profile);
-
   search.onsuccess = function() {
     foldersArrayCopy = search.result;
 
     toLearnWrapper.innerHTML = foldersArrayCopy.data.map((folder) => {
-      if (folder.data.length === 0 && folder.folderName.match(/copy/)) {
+      if (folder.folderName.match(/copy/) &&
+        folder.data.length === 0 &&
+        folder.sessionReviews.length === 0) { 
         const arr = [...folder.folderName];
         arr.splice(-5, 5);
         const joined = arr.join("");
         return `<div>
                   <span>${joined}</span>
-                  <span class="f-length ${joined}">${folder.data.length}</span>
-                  <span class="r-length">${folder.reviews.length}</span>
-                  <button data-practice="${joined}" class="practice-btn" disabled="true">Practice</button>
+                  <span class="f-length">${folder.data.length}</span>
+                  <span class="r-length">${folder.sessionReviews.length}</span>
+                  <button data-practice="${joined}" class="practice-btn" disabled>Practice</button>
                   <button class="personal-session-btn" data-session="${joined}">Personalized session</button>
-              </div>`;
+               </div>`;
       }
 
-      if (folder.folderName.match(/copy/)) {
+      if (folder.folderName.match(/copy/) &&
+        folder.data.length > 0 ||
+        folder.sessionReviews.length > 0) { 
         const arr = [...folder.folderName];
         arr.splice(-5, 5);
         const joined = arr.join("");
         return `<div>
                   <span>${joined}</span>
-                  <span class="f-length ${joined}">${folder.data.length}</span>
-                  <span class="r-length">${folder.reviews.length}</span>
+                  <span class="f-length">${folder.data.length}</span>
+                  <span class="r-length">${folder.sessionReviews.length}</span>
                   <button data-practice="${joined}" class="practice-btn">Practice</button>
                   <button class="personal-session-btn" data-session="${joined}">Personalized session</button>
-                </div>`;
-      } else {
-        return;
+               </div>`;
       }
-    }).join("");
-
-  }
+   }).join("");
+  };
 }
 
 toLearnWrapper.addEventListener("click", function(e) {
@@ -987,6 +1049,7 @@ toLearnWrapper.addEventListener("click", function(e) {
   }  
 });
 
+
 function personalizedStudy() {
   db = request.result;
   let tr = db.transaction("profiles", "readwrite");
@@ -999,6 +1062,7 @@ function personalizedStudy() {
     foldersArrayCopy = search.result;
   }
 }
+
 
 function study() {
   db = request.result;
@@ -1021,8 +1085,6 @@ function study() {
     const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
     foldersArrayCopy.data[index].data = [];
 
-    console.log(foldersArray.data[index]);
-
     // ---------------- Case A ----------------- //
     if (!dayPassed) {
       if (foldersArray.data[i].data.length < foldersArrayCopy.data[i].settings.new) {
@@ -1035,6 +1097,21 @@ function study() {
         }
         console.log("Case A - first condition");
         arrayToShow.push(...foldersArrayCopy.data[index].data);
+
+        if (foldersArray.data[index].sessionReviews.length > 0) {
+          arrayToShow.push(...foldersArrayCopy.data[index].sessionReviews);
+        } 
+
+        const tr2 = db.transaction("profiles", "readwrite");
+        const store = tr2.objectStore("profiles");
+        const indexDelete = store.index("by_name");
+        const deletion = indexDelete.getKey(profile);
+        deletion.onsuccess = function() {
+          const deleted = store.delete(deletion.result);
+          console.log("deleted");
+        };
+        const addition = store.add(foldersArrayCopy);
+        studyMenu();
       } 
       
       else {
@@ -1050,6 +1127,21 @@ function study() {
           }
           console.log("Case A - second condition");
           arrayToShow.push(...foldersArrayCopy.data[index].data);
+
+          if (foldersArray.data[index].sessionReviews.length > 0) {
+            arrayToShow.push(...foldersArrayCopy.data[index].sessionReviews);
+          }
+
+          const tr2 = db.transaction("profiles", "readwrite");
+          const store = tr2.objectStore("profiles");
+          const indexDelete = store.index("by_name");
+          const deletion = indexDelete.getKey(profile);
+          deletion.onsuccess = function() {
+            const deleted = store.delete(deletion.result);
+            console.log("deleted");
+          };
+          const addition = store.add(foldersArrayCopy);
+          studyMenu();
         }
       }
     }
@@ -1068,6 +1160,10 @@ function study() {
         }
         console.log("Case B - first condition");
         arrayToShow.push(...foldersArrayCopy.data[index].data);
+
+        if (foldersArray.data[index].sessionReviews.length > 0) {
+          arrayToShow.push(...foldersArrayCopy.data[index].sessionReviews);
+        } 
 
         const tr2 = db.transaction("profiles", "readwrite");
         const store = tr2.objectStore("profiles");
@@ -1105,6 +1201,10 @@ function study() {
         console.log("Case B - second condition");
         arrayToShow.push(...foldersArrayCopy.data[index].data);
 
+        if (foldersArray.data[index].sessionReviews.length > 0) {
+          arrayToShow.push(...foldersArrayCopy.data[index].sessionReviews);
+        } 
+
         const tr2 = db.transaction("profiles", "readwrite");
         const store = tr2.objectStore("profiles");
         const indexDelete = store.index("by_name");
@@ -1121,11 +1221,22 @@ function study() {
       console.log("Case A - We cannot study, checktime is false", dayPassed);
     }
 
+    // const tr = db.transaction("profiles", "readwrite");
+    // const store = tr.objectStore("profiles");
+    // const indexDelete = store.index("by_name");
+    // const deletion = indexDelete.getKey(profile);
+    // deletion.onsuccess = function() {
+    //   store.delete(deletion.result);
+    // };
+    // store.add(foldersArrayCopy);
+    // studyMenu();
+
     console.log(arrayToShow);
     spanFrontData.innerText = arrayToShow[currentIndex].front;
     flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
-    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
-  }
+    reviewsLength.innerText = foldersArrayCopy.data[index].sessionReviews.length;
+  };
+  reviewsSpacing.style.display = "none";
 }
 
 // show answer...
@@ -1138,54 +1249,86 @@ function showFlashcardAnswer() {
   let search = index.get(profile);
 
   search.onsuccess = function() {
-    console.log('Current index:', currentIndex);
     foldersArrayCopy = search.result;
-    const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
-    const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+    // const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
+    // const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+   
     showAnswerBtn.disabled = true;
     spanBackData.innerText = arrayToShow[currentIndex].back;
 
-    if (currentIndex >= arrayToShow.length - 1) {
-      currentIndex = arrayToShow.length - 1;
-      nextBtn.disabled = true;
-      backBtn.disabled = false;
-    } else {
-      nextBtn.disabled = false;
-    }
+
+    // if (currentIndex === arrayToShow.length - 1) {
+    //   if (foldersArrayCopy.data[index].sessionReviews.length) {
+    //     arrayToShow.push(...foldersArrayCopy.data[index].sessionReviews);
+    //   } else {
+    //     return;
+    //   } 
+    // }
+
+
+    // if (currentIndex >= arrayToShow.length - 1) {
+    //   currentIndex = arrayToShow.length - 1;
+    //   nextBtn.disabled = true;
+    //   backBtn.disabled = true;
+    // } else {
+    //   nextBtn.disabled = true;
+    // }
 
     // mark flashcard as old and send it to review...
-    for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
-      if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
-        foldersArrayCopy.data[i].data[j].old = "old";
-      } 
-    }  
-    for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
-      if (!foldersArrayCopy.data[i].reviews.includes(arrayToShow[currentIndex])) {
-        foldersArrayCopy.data[i].reviews.push(arrayToShow[currentIndex]);
-        foldersArrayCopy.data[index].reviews.push(arrayToShow[currentIndex]);
-      }
-    }  
-    foldersArrayCopy.data[i].flashcardsLearned++;
+    // for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+    //   if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
+    //     foldersArrayCopy.data[i].data[j].old = "old";
+    //   } 
+    // }  
+    // for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+    //   if (!foldersArrayCopy.data[i].reviews.includes(arrayToShow[currentIndex])) {
+    //     foldersArrayCopy.data[i].reviews.push(arrayToShow[currentIndex]);
+    //     foldersArrayCopy.data[index].reviews.push(arrayToShow[currentIndex]);
+    //   }
+    // }  
+    // foldersArrayCopy.data[i].flashcardsLearned++;
     
     // delete flashcard from session...
-    foldersArrayCopy.data[index].data.splice(0, 1);
-    let tr = db.transaction("profiles", "readwrite");
-    let store = tr.objectStore("profiles");
-    let indexDelete = store.index("by_name");
-    const deletion = indexDelete.getKey(profile);
-    deletion.onsuccess = function() {
-      store.delete(deletion.result);
-    }
-    const addition = store.add(foldersArrayCopy);
+    // foldersArrayCopy.data[index].data.splice(0, 1);
+    // let tr = db.transaction("profiles", "readwrite");
+    // let store = tr.objectStore("profiles");
+    // let indexDelete = store.index("by_name");
+    // const deletion = indexDelete.getKey(profile);
+    // deletion.onsuccess = function() {
+    //   store.delete(deletion.result);
+    // }
+    // const addition = store.add(foldersArrayCopy);
     
-    studyMenu();
-    flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
-    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
-    if (currentIndex <= 0) {
-      backBtn.disabled = true;
-    }
+    // studyMenu();
+    // flashcardsLength.innerText = foldersArrayCopy.data[index].data.length;
+    // reviewsLength.innerText = foldersArrayCopy.data[index].sessionReviews.length;
+    // if (currentIndex <= 0) {
+    //   backBtn.disabled = true;
+    
+    reviewsSpacing.style.display = "flex";
+    const buttons = reviewsSpacing.querySelectorAll("button");
+    buttons.forEach(button => button.disabled = false);
+
+    let difficultTime = arrayToShow[currentIndex].interval.difficult > 1? "days" : "day";
+    
+    changeInterval("easy", "Easy:", "easyCount", 
+    Math.ceil(arrayToShow[currentIndex].interval.easy), "days");
+
+    changeInterval("medium", "Medium:", "mediumCount",
+    Math.ceil(arrayToShow[currentIndex].interval.medium), "days");
+
+    changeInterval("difficult", "Difficult:", "difficultCount",
+    Math.ceil(arrayToShow[currentIndex].interval.difficult), difficultTime);
   }
+ }
+
+function changeInterval(button, difficulty, span, count, time) {
+  const html = `
+    ${difficulty} <span class="${span}">${count}</span> ${time}
+  `;
+  document.querySelector(`.${button}`).innerHTML = html;
 }
+
 function newShowFlashcardAnswer() {
   showAnswerBtn.disabled = true;
   spanBackData.innerText = arrayToShow[currentIndex].back;
@@ -1202,53 +1345,204 @@ function newShowFlashcardAnswer() {
   }
 }
 
-// next answer...
-nextBtn.addEventListener("click", nextFlashcard);
-function nextFlashcard() {
-  db = request.result;
-  let tr = db.transaction("profiles", "readwrite");
-  let store = tr.objectStore("profiles");
-  let index = store.index("by_name");
-  let search = index.get(profile);
 
-  search.onsuccess = function() {
-    const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
-    const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
-    foldersArrayCopy = search.result; 
-    
-    showAnswerBtn.disabled = false;
-    nextBtn.disabled = true;
-    currentIndex++;
-    console.log('Current index:', currentIndex);
-    spanFrontData.innerText = arrayToShow[currentIndex].front;
-    spanBackData.innerText = '';
-    if (currentIndex >= arrayToShow.length - 1) {
-      currentIndex = arrayToShow.length - 1;
-      nextBtn.disabled = true;
+
+reviewsSpacing.addEventListener("click", addSpacedRepetition);
+function addSpacedRepetition(e) {
+  if (e.target.tagName === "BUTTON") {
+    let target = Number(e.target.querySelector("span").innerText);
+    let currTarget = e.target;
+    dry(target, currTarget);
+  }
+  if (e.target.tagName === "SPAN") {
+    let target = Number(e.target.innerText);
+    let currTarget = e.target.parentNode;
+    dry(target, currTarget);
+  }
+
+  function dry(target, currTarget) {
+    let currentTarget = currTarget;
+    console.log("Current target:", currentTarget);
+    const buttons = reviewsSpacing.querySelectorAll("button");
+    buttons.forEach(button => button.disabled = true);
+
+    db = request.result;
+    let tr = db.transaction("profiles", "readwrite");
+    let store = tr.objectStore("profiles");
+    let index = store.index("by_name");
+    let search = index.get(profile);
+
+    search.onsuccess = function() {
+      foldersArray = search.result;
+      const index = foldersArray.data.map(folder => folder.folderName).indexOf(currentFolder);
+      const indexCopy = foldersArray.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+
       // mark flashcard as old and send it to review...
+      for (let j = 0; j < foldersArray.data[index].data.length; j++) {
+        if (arrayToShow[currentIndex].front === foldersArray.data[index].data[j].front) {
+          foldersArray.data[index].data[j].old = "old";
+        } 
+      }
+      
+      if (!foldersArray.data[index].reviews?.map(review => review.front).includes(arrayToShow[currentIndex].front)) {
+        foldersArray.data[index].reviews.push(arrayToShow[currentIndex]);
+        foldersArray.data[indexCopy].reviews.push(arrayToShow[currentIndex]);
+      }
 
-    
-      // for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
-      //   if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
-      //     foldersArrayCopy.data[i].data[j].old = "old";
-      //   } else {
-      //     return;
-      //   }
-      // }
+      if (arrayToShow[currentIndex].sent) {
+        foldersArray.data[index].flashcardsReviewed++;
+      } else {
+        foldersArray.data[index].flashcardsLearned++;
+      }
+      
+      
+      // delete flashcard and review from session...
+      foldersArray.data[indexCopy].data.splice(0, 1);
+      flashcardsLength.innerText = foldersArray.data[indexCopy].data.length;
 
-      // if (!foldersArrayCopy.data[index].data[currentIndex].old) {
-      //   foldersArrayCopy.data[i].data[currentIndex].old = "old";
-      //   foldersArrayCopy.data[index].data[currentIndex].old = "old";
-      // }
+      for (let i = 0; i < foldersArray.data[indexCopy].sessionReviews.length; i++) {
+        if (arrayToShow[currentIndex].front === foldersArray.data[indexCopy].sessionReviews[i].front) {
+          foldersArray.data[indexCopy].sessionReviews.splice(i, 1);
+        }
+      }
+      reviewsLength.innerText = foldersArray.data[indexCopy].sessionReviews.length;
+      console.log("Reviews:", foldersArray.data[indexCopy].sessionReviews.length);
 
-      // foldersArrayCopy.data[i].reviews.push(foldersArrayCopy.data[i].data[currentIndex]);
-      // foldersArrayCopy.data[index].reviews.push(foldersArrayCopy.data[index].data[currentIndex]);
-      // foldersArrayCopy.data[i].flashcardsLearned++;
-    }
+      // add spaced repetition...
+      const sendingDate = new Date("2025-01-20");
+      sendingDate.setHours(0, 0, 0, 0);
+      const sendingDateMs = sendingDate.getTime();
+      const getDates = new Date();
+      getDates.setDate(sendingDate.getDate() + target);
+      getDates.setHours(0, 0, 0, 0);
+      const getDatesMs = getDates.getTime();
+      console.log("Sent:", sendingDate, "\nGet:", getDates);
 
-    reviewsLength.innerText = foldersArrayCopy.data[i].reviews.length;
+      if (arrayToShow[currentIndex].sent || !arrayToShow[currentIndex].sent) {
+        arrayToShow[currentIndex].sent = sendingDateMs;
+        arrayToShow[currentIndex].get = getDatesMs;
+
+        if (currTarget.className === "easy") {
+          const easyCount = arrayToShow[currentIndex].interval.easy;
+          const mediumCount = arrayToShow[currentIndex].interval.medium;
+          const difficultCount = arrayToShow[currentIndex].interval.difficult;
+          arrayToShow[currentIndex].interval.easy = (20 / 100 * easyCount) + easyCount;
+          arrayToShow[currentIndex].interval.medium = (20 / 100 * mediumCount) + mediumCount;
+          arrayToShow[currentIndex].interval.difficult = (20 / 100 * difficultCount) + difficultCount;
+        }
+
+        if (currTarget.className === "medium") {
+          const easyCount = arrayToShow[currentIndex].interval.easy;
+          const mediumCount = arrayToShow[currentIndex].interval.medium;
+          const difficultCount = arrayToShow[currentIndex].interval.difficult;
+          arrayToShow[currentIndex].interval.easy = (15 / 100 * easyCount) + easyCount;
+          arrayToShow[currentIndex].interval.medium = (15 / 100 * mediumCount) + mediumCount;
+          arrayToShow[currentIndex].interval.difficult = (15 / 100 * difficultCount) + difficultCount;
+        }
+
+
+        if (currTarget.className === "difficult") {
+          const easyCount = arrayToShow[currentIndex].interval.easy;
+          const mediumCount = arrayToShow[currentIndex].interval.medium;
+          const difficultCount = arrayToShow[currentIndex].interval.difficult;
+          arrayToShow[currentIndex].interval.easy = (10 / 100 * easyCount) + easyCount;
+          arrayToShow[currentIndex].interval.medium = (10 / 100 * mediumCount) + mediumCount;
+          arrayToShow[currentIndex].interval.difficult = (10 / 100 * difficultCount) + difficultCount;
+        }
+        
+        for (let i = 0; i < foldersArray.data[index].reviews.length; i++) {
+          if (foldersArray.data[index].reviews.map(review => review.front)[i] === arrayToShow[currentIndex].front) {
+            foldersArray.data[index].reviews.splice(i, 1, arrayToShow[currentIndex]);
+            foldersArray.data[indexCopy].reviews.splice(i, 1, arrayToShow[currentIndex]);
+          }
+        }
+      } 
+
+      let tr = db.transaction("profiles", "readwrite");
+      let store = tr.objectStore("profiles");
+      let indexDelete = store.index("by_name");
+      const deletion = indexDelete.getKey(profile);
+      deletion.onsuccess = function() {
+        store.delete(deletion.result);
+      }
+      store.add(foldersArray);
+      studyMenu();
+
+      currentIndex++;
+      console.log('Current index:', currentIndex);
+      if (!arrayToShow[currentIndex]) {
+        spanFrontData.innerText = arrayToShow[currentIndex - 1].front;
+        spanBackData.innerText = arrayToShow[currentIndex - 1].back;
+      } else {
+        spanFrontData.innerText = arrayToShow[currentIndex]?.front;
+        spanBackData.innerText = '';
+      }
+      
+      if (currentIndex > arrayToShow.length - 1) {
+        currentIndex = arrayToShow.length - 1;
+        showAnswerBtn.disabled = true;
+        nextBtn.disabled = true;
+        backBtn.disabled = false;
+      } else {
+        showAnswerBtn.disabled = false;
+        nextBtn.disabled = true;
+      }
+      if (currentIndex <= 0) {
+        backBtn.disabled = true;
+      }
+
+    };
   }
 }
+
+
+// nextBtn.addEventListener("click", nextFlashcard);
+// function nextFlashcard() {
+//   db = request.result;
+//   let tr = db.transaction("profiles", "readwrite");
+//   let store = tr.objectStore("profiles");
+//   let index = store.index("by_name");
+//   let search = index.get(profile);
+
+//   search.onsuccess = function() {
+//     foldersArrayCopy = search.result; 
+//     const i = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(currentFolder);
+//     const index = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${currentFolder} copy`);
+    
+//     showAnswerBtn.disabled = false;
+//     nextBtn.disabled = true;
+//     currentIndex++;
+//     console.log('Current index:', currentIndex);
+//     spanFrontData.innerText = arrayToShow[currentIndex].front;
+//     spanBackData.innerText = '';
+//     if (currentIndex >= arrayToShow.length - 1) {
+//       currentIndex = arrayToShow.length - 1;
+//       nextBtn.disabled = true;
+
+//       mark flashcard as old and send it to review...
+//       for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+//         if (arrayToShow[currentIndex].front === foldersArrayCopy.data[i].data[j].front) {
+//           foldersArrayCopy.data[i].data[j].old = "old";
+//         } else {
+//           return;
+//         }
+//       }
+//       for (let j = 0; j < foldersArrayCopy.data[i].data.length; j++) {
+//         if (!foldersArrayCopy.data[i].reviews.includes(arrayToShow[currentIndex])) {
+//           foldersArrayCopy.data[i].reviews.push(arrayToShow[currentIndex]);
+//           foldersArrayCopy.data[index].reviews.push(arrayToShow[currentIndex]);
+//         }
+//       }
+//       foldersArrayCopy.data[i].flashcardsLearned++;
+//     }
+
+//     reviewsLength.innerText = foldersArrayCopy.data[index].sessionReviews.length;;
+//   }
+//   reviewsSpacing.style.display = "none";
+// }
+
+// next answer...
+nextBtn.addEventListener("click", newNextFlashcard);
 function newNextFlashcard() {
   showAnswerBtn.disabled = false;
   nextBtn.disabled = false;
@@ -1284,12 +1578,12 @@ function backFlashcard() {
       backBtn.disabled = true;
     }
     
+    reviewsSpacing.style.display = "none";
     showAnswerBtn.removeEventListener("click", showFlashcardAnswer);
     showAnswerBtn.addEventListener("click", newShowFlashcardAnswer);
-    nextBtn.removeEventListener("click", nextFlashcard);
-    nextBtn.addEventListener("click", newNextFlashcard);
   }
 }
+
 
 // close study modal...
 closeModalButton.addEventListener("click", () => {
@@ -1298,8 +1592,8 @@ closeModalButton.addEventListener("click", () => {
     arrayToShow.splice(0, arrayToShow.length);
     showAnswerBtn.removeEventListener("click", newShowFlashcardAnswer);
     showAnswerBtn.addEventListener("click", showFlashcardAnswer);
-    nextBtn.removeEventListener("click", newNextFlashcard);
-    nextBtn.addEventListener("click", nextFlashcard);
+    // nextBtn.removeEventListener("click", newNextFlashcard);
+    // nextBtn.addEventListener("click", nextFlashcard);
     currentIndex = 0;
   } else {
     modal.style.display = "block";
@@ -1331,63 +1625,89 @@ function settings() {
     let indexCopy = foldersArrayCopy.data.map(folder => folder.folderName).indexOf(`${folderSettings} copy`);
     foldersArrayCopy.data[indexCopy].data = [];
 
-    let reviews = [];
-
-    // ---------------------- Case A ---------------------- //
+    // for new flashcards...
+    let newFlashcards = [];
+    // ---------------------- New flash Case A ---------------------- //
     if (neuCount < foldersArrayCopy.data[index].data.length) {
       for (let i = 0; i < foldersArrayCopy.data[index].data.length; i++) {
         if (foldersArrayCopy.data[index].data[i].old) {
           continue;
         } else {
-          reviews.push(foldersArrayCopy.data[index].data[i]);
+          newFlashcards.push(foldersArrayCopy.data[index].data[i]);
         }
       }
-      
-      if (neuCount > foldersArrayCopy.data[index].flashcardsLearned) {
-        for (let i = 0; i < neuCount - foldersArrayCopy.data[index].flashcardsLearned; i++) {
-          foldersArrayCopy.data[indexCopy].data.push(reviews[i]);
-          if (foldersArrayCopy.data[indexCopy].data.length > reviews.length) {
-            foldersArrayCopy.data[indexCopy].data.pop();
-          }  
-        }
-        foldersArrayCopy.data[index].settings.new = neuCount;
-        foldersArrayCopy.data[indexCopy].settings.new = neuCount;
-        inputForNew.value = neuCount;
-      } else {
+
+      if (foldersArrayCopy.data[indexCopy].data.length > 0) {
+        console.log("ia muie");
+      }
+
+      if (foldersArrayCopy.data[indexCopy].data.length > 0 &&
+          foldersArrayCopy.data[index].flashcardsLearned < neuCount) {
+        console.log("hello");    
+        // for (let i = 0; i < newFlashcards.length; i++) {
+        //   foldersArrayCopy.data[indexCopy].data.push(newFlashcards[i]);
+        // }
+        // console.log(foldersArrayCopy.data[indexCopy].data);
+
+        // foldersArrayCopy.data[index].settings.new = neuCount;
+        // foldersArrayCopy.data[indexCopy].settings.new = neuCount;
+      }
+
+      // if (foldersArrayCopy.data[indexCopy].data.length && 
+      //     foldersArrayCopy.data[index].flashcardsLearned > neuCount) {
+      //   for (let i = 0; i < neuCount; i++) {
+      //     foldersArrayCopy.data[indexCopy].data.push(newFlashcards[i]);
+      //   }
+      //   foldersArrayCopy.data[index].settings.new = neuCount;
+      //   foldersArrayCopy.data[indexCopy].settings.new = neuCount;
+      //   inputForNew.value = neuCount;
+      // }  
+       
+      // if (neuCount > foldersArrayCopy.data[index].flashcardsLearned) {
+      //   for (let i = 0; i < neuCount - foldersArrayCopy.data[index].flashcardsLearned; i++) {
+      //     foldersArrayCopy.data[indexCopy].data.push(newFlashcards[i]);
+          // if (foldersArrayCopy.data[indexCopy].data.length > newFlashcards.length) {
+          //   foldersArrayCopy.data[indexCopy].data.pop();
+          // }  
+        // }
+        
+      // } 
+      else {
+        console.log("Mars in pula mea");
         foldersArrayCopy.data[index].settings.new = neuCount;
         foldersArrayCopy.data[indexCopy].settings.new = neuCount;
         inputForNew.value = neuCount;
       }
 
-      const tr2 = db.transaction("profiles", "readwrite");
-      const store = tr2.objectStore("profiles");
-      const indexDelete = store.index("by_name");
-      const deletion = indexDelete.getKey(profile);
-      deletion.onsuccess = function() {
-        const deleted = store.delete(deletion.result);
-      };
-      store.add(foldersArrayCopy);
+      // const tr2 = db.transaction("profiles", "readwrite");
+      // const store = tr2.objectStore("profiles");
+      // const indexDelete = store.index("by_name");
+      // const deletion = indexDelete.getKey(profile);
+      // deletion.onsuccess = function() {
+      //   const deleted = store.delete(deletion.result);
+      // };
+      // store.add(foldersArrayCopy);
 
       studyMenu();
       console.log("Settings saved");
       console.log("case A");
     }
 
-    // ----------------------- Case B ---------------------- //
+    // ----------------------- New flash Case B ---------------------- //
     if (neuCount >= foldersArrayCopy.data[index].data.length) {
       for (let i = 0; i < foldersArrayCopy.data[index].data.length; i++) {
         if (foldersArrayCopy.data[index].data[i].old) {
           continue;
         } else {
-          reviews.push(foldersArrayCopy.data[index].data[i]);
+          newFlashcards.push(foldersArrayCopy.data[index].data[i]);
         }
       }
       
       for (let i = 0;
         i < foldersArrayCopy.data[index].data.length - foldersArrayCopy.data[index].flashcardsLearned;
         i++) {
-        foldersArrayCopy.data[indexCopy].data.push(reviews[i]);
-        if (foldersArrayCopy.data[indexCopy].data.length > reviews.length) {
+        foldersArrayCopy.data[indexCopy].data.push(newFlashcards[i]);
+        if (foldersArrayCopy.data[indexCopy].data.length > newFlashcards.length) {
           foldersArrayCopy.data[indexCopy].data.pop();
         }  
       }
@@ -1408,6 +1728,125 @@ function settings() {
       console.log("Settings saved");
       console.log("case B");
     }
+
+
+    // for reviews...
+    // foldersArrayCopy.data[indexCopy].sessionReviews = [];
+    // let reviews = [];
+    // -------------------------- REVIEWS CASE A --------------------------- //
+    // if (inputForReview.value < foldersArrayCopy.data[indexCopy].reviews.length) {
+    //   console.log("Reviews: case A");
+    //   for (let i = 0; i < foldersArrayCopy.data[indexCopy].reviews?.length; i++) {
+    //     let msToElapse = foldersArrayCopy.data[indexCopy].reviews[i].get - foldersArrayCopy.data[indexCopy].reviews[i].sent;
+    //     let hoursToElapse = Math.floor(msToElapse / 1000 / 60 / 60);
+    //     let sending = foldersArrayCopy.data[indexCopy].reviews[i].sent;
+    //     let elapsedMs = Date.now() - sending;
+    //     let elapsedHours = Math.floor(elapsedMs / 1000 / 60 / 60) + 120;
+
+    //     if (elapsedHours >= hoursToElapse) {
+    //       if (!reviews?.map(review => review.front).includes(foldersArrayCopy.data[indexCopy].reviews[i].front)) {
+    //         reviews.push(foldersArrayCopy.data[indexCopy].reviews[i]);
+    //         console.log("Temp array:", reviews);
+    //       } else {
+    //         continue;
+    //       }
+    //     } 
+    //   }
+
+    //   if (foldersArrayCopy.data[index].flashcardsReviewed < inputForReview.value) {
+    //     for (let j = 0; j < inputForReview.value - foldersArrayCopy.data[index].flashcardsReviewed; j++) {
+    //       foldersArrayCopy.data[indexCopy].sessionReviews.push(reviews[j]);
+    //     }
+    //     foldersArrayCopy.data[index].settings.review = inputForReview.value;
+    //     foldersArrayCopy.data[indexCopy].settings.review = inputForReview.value;
+    //     inputForReview.value = foldersArrayCopy.data[index].settings.review;
+    //     console.log("Session:", foldersArrayCopy.data[indexCopy].sessionReviews);
+    //   } else {
+    //     foldersArrayCopy.data[index].settings.review = inputForReview.value;
+    //     foldersArrayCopy.data[indexCopy].settings.review = inputForReview.value;
+    //     inputForReview.value = foldersArrayCopy.data[index].settings.review;
+    //   }  
+
+    //   const tr = db.transaction("profiles", "readwrite");
+    //   const store = tr.objectStore("profiles");
+    //   const indexDelete = store.index("by_name");
+    //   const deletion = indexDelete.getKey(profile);
+    //   deletion.onsuccess = function() {
+    //     store.delete(deletion.result);
+    //   };
+    //   store.add(foldersArrayCopy); 
+    //   studyMenu();
+    // }
+
+    // --------------------------- REVIEWS CASE B -------------------------- //
+    // if (inputForReview.value >= foldersArrayCopy.data[indexCopy].reviews.length) {
+    //   console.log("Reviews: case B");
+    //   for (let i = 0; i < foldersArrayCopy.data[indexCopy].reviews?.length; i++) {
+    //     let msToElapse = foldersArrayCopy.data[indexCopy].reviews[i].get - foldersArrayCopy.data[indexCopy].reviews[i].sent;
+    //     let hoursToElapse = Math.floor(msToElapse / 1000 / 60 / 60);
+    //     let sending = foldersArrayCopy.data[indexCopy].reviews[i].sent;
+    //     let elapsedMs = Date.now() - sending;
+    //     let elapsedHours = Math.floor(elapsedMs / 1000 / 60 / 60) + 120;
+
+    //     if (elapsedHours >= hoursToElapse) {
+    //       if (!reviews?.map(review => review.front).includes(foldersArrayCopy.data[indexCopy].reviews[i].front)) {
+    //         reviews.push(foldersArrayCopy.data[indexCopy].reviews[i]);
+    //         console.log("Temp array:", reviews);
+    //       } else {
+    //         continue;
+    //       }
+    //     } 
+    //   }
+
+    //   for (let j = 0; j < foldersArrayCopy.data[index].reviews - foldersArrayCopy.data[index].flashcardsReviewed; j++) {
+    //     foldersArrayCopy.data[indexCopy].sessionReviews.push(reviews[j]);
+    //     if (foldersArrayCopy.data[indexCopy].sessionReviews.length > reviews.length) {
+    //       foldersArrayCopy.data[indexCopy].sessionReviews.pop();
+    //     } 
+    //   }
+    //   foldersArrayCopy.data[index].settings.review = inputForReview.value;
+    //   foldersArrayCopy.data[indexCopy].settings.review = inputForReview.value;
+    //   inputForReview.value = foldersArrayCopy.data[index].settings.review;
+    //   console.log("Session:", foldersArrayCopy.data[indexCopy].sessionReviews);
+
+    //   const tr = db.transaction("profiles", "readwrite");
+    //   const store = tr.objectStore("profiles");
+    //   const indexDelete = store.index("by_name");
+    //   const deletion = indexDelete.getKey(profile);
+    //   deletion.onsuccess = function() {
+    //     store.delete(deletion.result);
+    //   };
+    //   store.add(foldersArrayCopy); 
+    //   studyMenu();
+    // }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // const tr = db.transaction("profiles", "readwrite");
+    // const store = tr.objectStore("profiles");
+    // const indexDelete = store.index("by_name");
+    // const deletion = indexDelete.getKey(profile);
+    // deletion.onsuccess = function() {
+    //   store.delete(deletion.result);
+    // };
+    // store.add(foldersArrayCopy);   
+
   }
 }
 

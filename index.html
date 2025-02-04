@@ -62,6 +62,7 @@
         <div class="to-learn-wrapper">
         </div>
       </div>
+
       <div class="modal">
         <div class="modal-content">
           <span class="close-modal-button">&times;</span>
@@ -69,6 +70,13 @@
           <span class="reviews-length"></span>
           <span class="span-front-data"></span>
           <span class="span-back-data"></span>
+
+          <div class="reviews-spacing">
+            <button class="easy">Easy: <span class="easyCount">5</span> days</button>
+            <button class="medium">Medium: <span class="mediumCount">3</span> days</button>
+            <button class="difficult">Difficult: <span class="difficultCount">1</span> day</button>
+          </div>
+
           <button class="back-btn">Back</button>
           <button class="show-answer-btn">Show answer</button>
           <button class="next-btn">Next</button>
@@ -98,7 +106,6 @@
             <option value="new-to-old">From new to old</option>
           </select><br><br>
           
-
           <!--------reviews settings-------->
           <label for="review">Review</label>
           <input id="review" type="number" inputmode="numeric" placeholder="number" value="5">
